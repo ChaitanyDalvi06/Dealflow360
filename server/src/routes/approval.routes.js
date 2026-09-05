@@ -23,46 +23,124 @@ router.get('/pending', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMI
       include: {
         quotation: {
           include: {
-            customer: { select: { id: true, name: true, tier: true, company: true } },
-            rep: { select: { id: true, name: true } },
-            lines: { include: { product: { select: { name: true, category: true } } } },
+            customer: true,
+            rep: { select: { id: true, name: true, email: true } },
+            lines: { include: { product: true } },
+            approvalSteps: {
+              include: { approver: { select: { id: true, name: true, role: true } } },
+              orderBy: { createdAt: 'asc' },
+            },
           },
         },
       },
       orderBy: { createdAt: 'asc' },
     });
 
-    res.json(steps);
+    const formatted = steps.map(step => {
+      const q = step.quotation;
+      let gross = 0;
+      let totalDiscount = 0;
+      let totalCost = 0;
+
+      for (const l of q.lines) {
+        const qty = l.quantity;
+        const up = Number(l.unitPrice);
+        const disc = Number(l.discountPct);
+        const cost = Number(l.product?.costPrice || (up * (1 - (Number(l.product?.margin || 20) / 100))));
+        gross += qty * up;
+        totalDiscount += qty * up * (disc / 100);
+        totalCost += cost * qty;
+      }
+
+      const net = Number(q.orderTotal || Math.max(0, gross - totalDiscount));
+      const marginPct = net > 0 ? Math.round(((net - totalCost) / net) * 1000) / 10 : 0;
+      const riskScore = Number(q.blendedRiskScore || 0);
+      const riskLevel = riskScore > 60 ? 'HIGH' : riskScore > 30 ? 'MEDIUM' : 'LOW';
+
+      return {
+        id: step.id,
+        quotationId: step.quotationId,
+        level: step.approverRole,
+        status: step.status,
+        createdAt: step.createdAt,
+        escalationReason: step.reason || `Quotation exceeds standard discount or margin thresholds. Requires ${step.approverRole} sign-off.`,
+        quotation: {
+          ...q,
+          quoteNumber: q.id.slice(0, 8).toUpperCase(),
+          totalAmount: net,
+          totalDiscount: Math.round(totalDiscount),
+          marginPct,
+          riskScore,
+          riskLevel,
+          salesRep: q.rep,
+          customer: {
+            ...q.customer,
+            companyName: q.customer?.company || q.customer?.name,
+          },
+          lines: q.lines.map(l => ({
+            id: l.id,
+            productId: l.productId,
+            quantity: l.quantity,
+            unitPrice: Number(l.unitPrice),
+            discountPct: Number(l.discountPct),
+            total: Number(l.lineTotal),
+            product: l.product,
+          })),
+          approvalChain: q.approvalSteps?.map(s => ({
+            level: s.approverRole,
+            status: s.status,
+            actionBy: s.approver,
+            comments: s.reason,
+            createdAt: s.createdAt,
+          })),
+        },
+      };
+    });
+
+    res.json(formatted);
   } catch (err) {
     next(err);
   }
 });
 
-// ─── APPROVE / REJECT / RETURN ──────────────────────────────
-router.post('/:quotationId/action', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), async (req, res, next) => {
+// ─── HELPER FOR DECISION ACTIONS ────────────────────────────
+async function handleApprovalAction(req, res, next, action) {
   try {
-    const { action, reason } = req.body; // action: 'APPROVED' | 'REJECTED' | 'RETURNED'
+    const targetId = req.params.id || req.params.quotationId;
+    const reason = req.body.comments || req.body.reason || (action === 'APPROVE' ? 'Approved by manager' : 'Decision recorded');
 
-    if (!['APPROVED', 'REJECTED', 'RETURNED'].includes(action)) {
-      return res.status(400).json({ error: 'Invalid action. Must be APPROVED, REJECTED, or RETURNED' });
+    // Check if targetId is step ID or quotation ID
+    let quotationId = targetId;
+    const step = await prisma.approvalStep.findUnique({ where: { id: targetId } });
+    if (step) {
+      quotationId = step.quotationId;
     }
-    if (!reason) {
-      return res.status(400).json({ error: 'Reason is required for all approval actions' });
-    }
+
+    const actionKey = action === 'APPROVE' ? 'APPROVED' : action === 'REJECT' ? 'REJECTED' : 'RETURNED';
 
     const result = await processApproval(
-      req.params.quotationId,
+      quotationId,
       req.user.id,
       req.user.role,
-      action,
+      actionKey,
       reason
     );
 
     res.json(result);
   } catch (err) {
-    if (err.message.includes('No pending approval')) {
-      return res.status(400).json({ error: err.message });
-    }
+    next(err);
+  }
+}
+
+router.post('/:id/approve', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), (req, res, next) => handleApprovalAction(req, res, next, 'APPROVE'));
+router.post('/:id/reject', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), (req, res, next) => handleApprovalAction(req, res, next, 'REJECT'));
+router.post('/:id/return', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), (req, res, next) => handleApprovalAction(req, res, next, 'RETURN'));
+router.post('/:quotationId/action', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), async (req, res, next) => {
+  try {
+    const { action, reason } = req.body;
+    const result = await processApproval(req.params.quotationId, req.user.id, req.user.role, action, reason || 'Decision processed');
+    res.json(result);
+  } catch (err) {
     next(err);
   }
 });

@@ -74,32 +74,26 @@ router.post('/calculate-risk', authenticate, async (req, res, next) => {
   }
 });
 
-// ─── UPSELL RECOMMENDATIONS ─────────────────────────────────
+// ─── UPSELL RECOMMENDATIONS (MODEL 1: LIFT ENGINE) ──────────
 router.post('/upsell-recommendations', authenticate, async (req, res, next) => {
   try {
     const { productIds = [] } = req.body;
     if (productIds.length === 0) return res.json([]);
 
-    const rules = await prisma.upsellRule.findMany({
-      where: { sourceProductId: { in: productIds } },
-      take: 4,
-    });
+    const mlResponse = await getUpsellRecommendations(productIds);
+    const recs = (mlResponse?.recommendations || []).map(r => ({
+      id: r.productId,
+      productId: r.productId,
+      name: r.productName,
+      basePrice: r.basePrice,
+      category: r.category,
+      isPromoted: r.isPromoted,
+      reason: `AI Market Basket Lift: ${r.liftScore}x (+₹${Number(r.marginDelta).toLocaleString('en-IN')} margin)`,
+      marginDelta: r.marginDelta,
+      source: r.source || 'ml_association_rules',
+    }));
 
-    const targetProductIds = rules.map(r => r.targetProductId).filter(id => !productIds.includes(id));
-    const products = await prisma.product.findMany({
-      where: { id: { in: targetProductIds } },
-    });
-
-    const recommendations = products.map(prod => {
-      const rule = rules.find(r => r.targetProductId === prod.id);
-      return {
-        product: prod,
-        reason: 'Frequently bundled with selected items (+ ₹' + Number(rule?.marginDelta || 5000).toLocaleString('en-IN') + ' margin)',
-        marginDelta: Number(rule?.marginDelta || 0),
-      };
-    });
-
-    res.json(recommendations);
+    res.json(recs);
   } catch (err) {
     next(err);
   }
@@ -127,7 +121,17 @@ router.get('/', authenticate, async (req, res, next) => {
       orderBy: { lastActivityAt: 'desc' },
     });
 
-    res.json(quotations);
+    const formatted = quotations.map(q => ({
+      ...q,
+      quoteNumber: q.id.slice(0, 8).toUpperCase(),
+      totalAmount: Number(q.orderTotal || 0),
+      customer: {
+        ...q.customer,
+        companyName: q.customer?.company || q.customer?.name,
+      },
+    }));
+
+    res.json(formatted);
   } catch (err) {
     next(err);
   }
@@ -167,7 +171,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // ─── CREATE QUOTATION ──────────────────────────────────────
 router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
-    const { customerId, notes } = req.body;
+    const { customerId, notes, lines = [] } = req.body;
 
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -187,6 +191,46 @@ router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'),
       },
     });
 
+    // Create lines if provided
+    if (Array.isArray(lines) && lines.length > 0) {
+      for (const l of lines) {
+        const product = await prisma.product.findUnique({ where: { id: l.productId } });
+        if (product) {
+          const unitPrice = Number(l.unitPrice) || Number(product.basePrice);
+          const discountPct = Number(l.discountPct) || 0;
+          const quantity = Number(l.quantity) || 1;
+          const discountedPrice = unitPrice * (1 - discountPct / 100);
+          const lineTotal = Math.round(discountedPrice * quantity * 100) / 100;
+          const lineMargin = Math.round(lineTotal * (Number(product.margin) / 100) * 100) / 100;
+
+          await prisma.quotationLine.create({
+            data: {
+              quotationId: quotation.id,
+              productId: l.productId,
+              quantity,
+              unitPrice,
+              discountPct,
+              lineTotal,
+              lineMargin,
+              isRecurring: product.isRecurring,
+            },
+          });
+        }
+      }
+
+      await recalculateQuotationTotals(quotation.id);
+      await computeBlendedRiskScore(quotation.id);
+    }
+
+    const fullQuotation = await prisma.quotation.findUnique({
+      where: { id: quotation.id },
+      include: {
+        customer: { select: { id: true, name: true, tier: true, company: true } },
+        rep: { select: { id: true, name: true } },
+        lines: { include: { product: true } },
+      },
+    });
+
     await createAuditLog({
       entityType: 'Quotation',
       entityId: quotation.id,
@@ -195,7 +239,76 @@ router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'),
       reason: `New quotation for ${customer.name}`,
     });
 
-    res.status(201).json(quotation);
+    res.status(201).json({
+      ...fullQuotation,
+      quoteNumber: fullQuotation.id.slice(0, 8).toUpperCase(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── UPDATE QUOTATION (SAVE AS DRAFT / EDIT) ────────────────
+router.put('/:id', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
+  try {
+    const { customerId, notes, lines } = req.body;
+
+    const existing = await prisma.quotation.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: 'Quotation not found' });
+
+    await prisma.quotation.update({
+      where: { id: req.params.id },
+      data: {
+        ...(customerId && { customerId }),
+        ...(notes !== undefined && { notes }),
+      },
+    });
+
+    if (Array.isArray(lines)) {
+      await prisma.quotationLine.deleteMany({ where: { quotationId: req.params.id } });
+
+      for (const l of lines) {
+        const product = await prisma.product.findUnique({ where: { id: l.productId } });
+        if (product) {
+          const unitPrice = Number(l.unitPrice) || Number(product.basePrice);
+          const discountPct = Number(l.discountPct) || 0;
+          const quantity = Number(l.quantity) || 1;
+          const discountedPrice = unitPrice * (1 - discountPct / 100);
+          const lineTotal = Math.round(discountedPrice * quantity * 100) / 100;
+          const lineMargin = Math.round(lineTotal * (Number(product.margin) / 100) * 100) / 100;
+
+          await prisma.quotationLine.create({
+            data: {
+              quotationId: req.params.id,
+              productId: l.productId,
+              quantity,
+              unitPrice,
+              discountPct,
+              lineTotal,
+              lineMargin,
+              isRecurring: product.isRecurring,
+            },
+          });
+        }
+      }
+
+      await recalculateQuotationTotals(req.params.id);
+      await computeBlendedRiskScore(req.params.id);
+    }
+
+    const updated = await prisma.quotation.findUnique({
+      where: { id: req.params.id },
+      include: {
+        customer: true,
+        rep: { select: { id: true, name: true } },
+        lines: { include: { product: true } },
+      },
+    });
+
+    res.json({
+      ...updated,
+      quoteNumber: updated.id.slice(0, 8).toUpperCase(),
+    });
   } catch (err) {
     next(err);
   }
@@ -336,7 +449,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
 
     const result = await routeForApproval(req.params.id, req.user.id);
 
-    // Update status to SENT if auto-approved
+    // Update status to APPROVED if auto-approved
     if (result.approved) {
       await prisma.quotation.update({
         where: { id: req.params.id },
@@ -344,7 +457,21 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       });
     }
 
-    res.json(result);
+    const updated = await prisma.quotation.findUnique({
+      where: { id: req.params.id },
+      include: {
+        customer: true,
+        rep: true,
+        lines: { include: { product: true } },
+      },
+    });
+
+    res.json({
+      ...updated,
+      quoteNumber: updated.id.slice(0, 8).toUpperCase(),
+      approvalResult: result,
+      requiredApprovalLevel: result.level === 'NONE' ? 'LEVEL_1_AUTO' : result.level === 'MANAGER' ? 'LEVEL_2_MANAGER' : 'LEVEL_3_DIRECTOR',
+    });
   } catch (err) {
     next(err);
   }

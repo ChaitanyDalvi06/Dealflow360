@@ -19,7 +19,24 @@ export default function ApprovalPage() {
     try {
       setLoading(true);
       const res = await api.get('/approvals/pending');
-      setApprovals(res.data);
+      const items = res.data;
+
+      // Enhance each pending approval with real-time ML Model 2 prediction
+      const enhanced = await Promise.all(items.map(async (appr) => {
+        try {
+          const q = appr.quotation;
+          const predRes = await api.post(`/approvals/${q.id}/predict-acceptance`, {
+            discountRequestedPct: q.lines?.[0]?.discountPct || 12,
+            discountGap: 3,
+            currentDiscount: Math.max(0, (q.lines?.[0]?.discountPct || 12) - 3),
+          });
+          return { ...appr, prediction: predRes.data };
+        } catch {
+          return appr;
+        }
+      }));
+
+      setApprovals(enhanced);
     } catch (err) {
       console.error('Failed to load approvals:', err);
     } finally {
@@ -151,6 +168,36 @@ export default function ApprovalPage() {
                       `Discount exceeded tier standard threshold of ${q.customer?.maxDiscountLimit || 15}%.`}
                   </span>
                 </div>
+
+                {/* AI Model 2 Negotiation Prediction */}
+                {approval.prediction && (
+                  <div style={{
+                    background: 'rgba(15, 44, 89, 0.04)',
+                    border: '1px dashed #DAC0A3',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    margin: '10px 0',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px'
+                  }}>
+                    <Sparkles size={18} color="#d4af37" style={{ marginTop: '2px', flexShrink: 0 }} />
+                    <div style={{ flex: 1, fontSize: '0.85rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                        <strong style={{ color: '#0F2C59' }}>AI Negotiation Predictor (Model 2):</strong>
+                        <span style={{ 
+                          fontWeight: 'bold', 
+                          color: approval.prediction.acceptanceProbability >= 65 ? '#28a745' : approval.prediction.acceptanceProbability >= 35 ? '#e67e22' : '#dc3545' 
+                        }}>
+                          {approval.prediction.acceptanceProbability}% Win Probability
+                        </span>
+                      </div>
+                      <div style={{ color: '#444', fontStyle: 'italic', lineHeight: '1.3' }}>
+                        {approval.prediction.recommendation}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Actions Bar */}
                 <div className="ticket-actions-bar">

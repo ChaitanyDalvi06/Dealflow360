@@ -7,6 +7,93 @@ import { createAuditLog } from '../middleware/audit.js';
 
 const router = Router();
 
+// ─── PUBLIC PORTAL: VIEW QUOTE BY TOKEN / ID ───────────────
+router.get('/quote/:token', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    // Token can be the quotation ID or a customer magicToken
+    const quotation = await prisma.quotation.findFirst({
+      where: {
+        OR: [
+          { id: token },
+          { customer: { magicToken: token } },
+        ],
+      },
+      include: {
+        customer: true,
+        rep: { select: { name: true, email: true } },
+        lines: { include: { product: true } },
+        negotiations: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+
+    if (!quotation) return res.status(404).json({ error: 'Quotation not found for this token' });
+
+    res.json({
+      ...quotation,
+      quoteNumber: quotation.id.slice(0, 8).toUpperCase(),
+      totalAmount: Number(quotation.orderTotal),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── PUBLIC PORTAL: SUBMIT COUNTER-OFFER VIA TOKEN ─────────
+router.post('/quote/:token/negotiate', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { counterDiscountPct = 0, message = '' } = req.body;
+
+    const quotation = await prisma.quotation.findFirst({
+      where: {
+        OR: [
+          { id: token },
+          { customer: { magicToken: token } },
+        ],
+      },
+      include: { customer: true },
+    });
+
+    if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
+
+    // Record negotiation event
+    const event = await prisma.negotiationEvent.create({
+      data: {
+        quotationId: quotation.id,
+        messageText: message,
+        discountRequestedPct: counterDiscountPct,
+        senderType: 'CUSTOMER',
+        outcome: 'pending',
+      },
+    });
+
+    // Update quote status to UNDER_NEGOTIATION
+    const updated = await prisma.quotation.update({
+      where: { id: quotation.id },
+      data: { status: 'UNDER_NEGOTIATION' },
+      include: {
+        customer: true,
+        rep: { select: { name: true, email: true } },
+        lines: { include: { product: true } },
+        negotiations: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+
+    res.json({
+      success: true,
+      event,
+      quotation: {
+        ...updated,
+        quoteNumber: updated.id.slice(0, 8).toUpperCase(),
+        totalAmount: Number(updated.orderTotal),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── GET CUSTOMER'S QUOTATIONS ──────────────────────────────
 router.get('/quotations', authenticateCustomer, async (req, res, next) => {
   try {

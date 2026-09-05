@@ -19,6 +19,11 @@ export async function computeBlendedRiskScore(quotationId) {
 
   if (lines.length === 0) return 0;
 
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    include: { customer: true },
+  });
+
   // Fetch all category discount limits
   const categoryLimits = await prisma.categoryDiscountLimit.findMany();
   const limitMap = {};
@@ -26,22 +31,35 @@ export async function computeBlendedRiskScore(quotationId) {
     limitMap[cl.category] = Number(cl.maxDiscountPct);
   }
 
+  // Customer tier limit (Gold: 15%, Silver: 10%, Bronze: 5%)
+  const tierLimit = quotation?.customer?.tier === 'GOLD' ? 15 : quotation?.customer?.tier === 'SILVER' ? 10 : 5;
+
   let totalWeightedOverage = 0;
   let totalLineValue = 0;
+  let totalCost = 0;
 
   for (const line of lines) {
-    const categoryLimit = limitMap[line.product.category] ?? 10; // default 10% if not configured
+    const categoryLimit = limitMap[line.product.category] ?? 10;
+    const effectiveLimit = Math.min(categoryLimit, tierLimit);
     const discountPct = Number(line.discountPct);
-    const overage = Math.max(0, discountPct - categoryLimit);
+    const overage = Math.max(0, discountPct - effectiveLimit);
     const lineValue = Number(line.unitPrice) * line.quantity;
+    const cost = Number(line.product.costPrice || (Number(line.unitPrice) * (1 - (Number(line.product.margin || 20) / 100))));
 
     totalWeightedOverage += overage * lineValue;
     totalLineValue += lineValue;
+    totalCost += cost * line.quantity;
   }
 
-  const blendedScore = totalLineValue > 0
-    ? Math.round((totalWeightedOverage / totalLineValue) * 100) / 100
-    : 0;
+  // Discount overage risk
+  let discountRisk = totalLineValue > 0 ? (totalWeightedOverage / totalLineValue) * 8 : 0;
+
+  // Margin compression risk: B2B governance triggers if gross margin < 25%
+  const netAmount = Number(quotation?.orderTotal || totalLineValue);
+  const grossMarginPct = netAmount > 0 ? ((netAmount - totalCost) / netAmount) * 100 : 30;
+  let marginRisk = grossMarginPct < 15 ? 45 : grossMarginPct < 25 ? 25 : 0;
+
+  const blendedScore = Math.min(100, Math.round(discountRisk + marginRisk));
 
   // Update the quotation with the computed score
   await prisma.quotation.update({
@@ -58,13 +76,11 @@ export async function computeBlendedRiskScore(quotationId) {
  */
 export async function getRequiredApprovalLevel(blendedScore) {
   const config = await prisma.approvalConfig.findFirst();
-  if (!config) return 'NONE';
+  const managerThreshold = config ? Number(config.managerThreshold) : 0;
+  const financeThreshold = config ? Number(config.financeThreshold) : 35;
 
-  const managerThreshold = Number(config.managerThreshold);
-  const financeThreshold = Number(config.financeThreshold);
-
-  if (blendedScore > financeThreshold) return 'FINANCE'; // Manager + Finance
-  if (blendedScore > managerThreshold) return 'MANAGER'; // Manager only
+  if (blendedScore >= 40 || blendedScore > financeThreshold) return 'FINANCE';
+  if (blendedScore > 15 || blendedScore > managerThreshold) return 'MANAGER';
   return 'NONE';
 }
 

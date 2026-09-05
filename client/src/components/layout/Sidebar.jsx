@@ -1,37 +1,49 @@
+import { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import api from '../../utils/api';
 import { 
   LayoutDashboard, Layers, FileText, CheckSquare, Users, 
   Package, Warehouse, RotateCcw, CreditCard, BarChart3, 
   UserCog, Settings, TrendingUp
 } from 'lucide-react';
 
-const MENU_SECTIONS = [
-  {
-    items: [
-      { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { path: '/workspace', label: 'Sales Workspace', icon: Layers },
-      { path: '/pipeline', label: 'Quotations', icon: FileText },
-      { path: '/approvals', label: 'Approvals', icon: CheckSquare, badge: 3 },
-      { path: '/admin?tab=CUSTOMERS', label: 'Customers', icon: Users },
-      { path: '/workspace', label: 'Products & Price Lists', icon: Package },
-      { path: '/warehouse', label: 'Warehouses', icon: Warehouse },
-      { path: '/billing', label: 'Subscriptions', icon: RotateCcw },
-      { path: '/billing', label: 'Invoices & Billing', icon: CreditCard },
-      { path: '/reports', label: 'Reports', icon: BarChart3 },
-    ]
-  },
-  {
-    title: 'ADMIN',
-    items: [
-      { path: '/admin', label: 'User Management', icon: UserCog },
-      { path: '/admin', label: 'System Settings', icon: Settings },
-    ]
-  }
-];
-
 export default function Sidebar() {
   const { user } = useAuth();
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  useEffect(() => {
+    // Only fetch if manager/admin/finance
+    if (['SALES_MANAGER', 'FINANCE', 'ADMIN'].includes(user?.role)) {
+      api.get('/approvals/pending')
+        .then(res => setPendingApprovals(Array.isArray(res.data) ? res.data.length : 0))
+        .catch(() => setPendingApprovals(0));
+    }
+  }, [user]);
+
+  const MENU_SECTIONS = [
+    {
+      items: [
+        { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { path: '/workspace', label: 'Sales Workspace', icon: Layers },
+        { path: '/pipeline', label: 'Quotations', icon: FileText },
+        { path: '/approvals', label: 'Approvals', icon: CheckSquare, badge: pendingApprovals > 0 ? pendingApprovals : undefined },
+        { path: '/admin?tab=CUSTOMERS', label: 'Customers', icon: Users },
+        { path: '/workspace', label: 'Products & Price Lists', icon: Package },
+        { path: '/warehouse', label: 'Warehouses', icon: Warehouse },
+        { path: '/billing', label: 'Subscriptions', icon: RotateCcw },
+        { path: '/billing', label: 'Invoices & Billing', icon: CreditCard },
+        { path: '/reports', label: 'Reports', icon: BarChart3 },
+      ]
+    },
+    {
+      title: 'ADMIN',
+      items: [
+        { path: '/admin', label: 'User Management', icon: UserCog },
+        { path: '/admin', label: 'System Settings', icon: Settings },
+      ]
+    }
+  ];
 
   return (
     <aside className="sidebar">
