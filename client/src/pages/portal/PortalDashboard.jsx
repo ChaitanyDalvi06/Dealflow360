@@ -14,24 +14,36 @@ export default function PortalDashboard() {
   const [requirements, setRequirements] = useState([]);
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [approvedAlert, setApprovedAlert] = useState(null);
   const customer = JSON.parse(localStorage.getItem('df360_portal_customer') || '{}');
 
+  const fetchData = async () => {
+    try {
+      const [reqRes, quotRes] = await Promise.all([
+        portalApi.get('/portal/requirements'),
+        portalApi.get('/portal/quotations'),
+      ]);
+      setRequirements(reqRes.data);
+      setQuotations(quotRes.data);
+    } catch (err) {
+      console.error('Failed to load portal data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [reqRes, quotRes] = await Promise.all([
-          portalApi.get('/portal/requirements'),
-          portalApi.get('/portal/quotations'),
-        ]);
-        setRequirements(reqRes.data);
-        setQuotations(quotRes.data);
-      } catch (err) {
-        console.error('Failed to load portal data:', err);
-      } finally {
-        setLoading(false);
+    fetchData();
+
+    const handleApproved = (e) => {
+      fetchData();
+      if (e?.detail) {
+        setApprovedAlert(e.detail);
       }
     };
-    fetchData();
+
+    window.addEventListener('df360:quotation:approved', handleApproved);
+    return () => window.removeEventListener('df360:quotation:approved', handleApproved);
   }, []);
 
   if (loading) {
@@ -56,6 +68,25 @@ export default function PortalDashboard() {
           New Requirement
         </Link>
       </div>
+
+      {/* Real-time Approved Alert Banner for Buyer */}
+      {approvedAlert && (
+        <div className="alert-banner alert-banner-success" style={{ margin: '0 0 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderRadius: '10px' }}>
+          <div>
+            <strong style={{ fontSize: '1rem', color: '#065f46' }}>🎉 Quotation Approved by Finance!</strong>
+            <p style={{ margin: '0.3rem 0 0', fontSize: '0.88rem', color: '#166534' }}>
+              Quotation <strong>{approvedAlert.quoteNumber || 'QT-' + (approvedAlert.quotationId || '').slice(-6).toUpperCase()}</strong> for ₹{Number(approvedAlert.orderTotal || 0).toLocaleString('en-IN')} has been officially approved by Finance and is ready for your review!
+            </p>
+          </div>
+          <button 
+            type="button" 
+            style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}
+            onClick={() => setApprovedAlert(null)}
+          >
+            Acknowledge
+          </button>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="portal-stats">

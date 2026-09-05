@@ -163,4 +163,24 @@ export function notifyRep(repId, notification) {
   }
 }
 
+/**
+ * Broadcasts quotation approval event to all connected users
+ * (Admin, Sales Manager, Sales Rep, Finance, Buyer).
+ */
+export function broadcastQuotationApproved(data) {
+  if (!io) return;
+  // 1. Emit live quotation approval event
+  io.emit('quotation:approved', data);
+
+  // 2. Emit rich notification payload
+  io.emit('notification', {
+    id: data.notificationId || `notif_${Date.now()}`,
+    type: 'QUOTATION_APPROVED',
+    title: 'Quotation Approved 🎉',
+    message: `Quotation ${data.quoteNumber || 'QT-' + (data.quotationId || '').slice(-6).toUpperCase()} (${data.customerName || 'Customer'}) for ₹${Number(data.orderTotal || 0).toLocaleString('en-IN')} has been approved by Finance!`,
+    quotationId: data.quotationId,
+    timestamp: new Date().toISOString(),
+  });
+}
+
 export { io };

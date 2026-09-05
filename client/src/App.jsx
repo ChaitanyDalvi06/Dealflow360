@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
@@ -13,7 +14,6 @@ import AdminPage from './pages/AdminPage';
 import ReportsPage from './pages/ReportsPage';
 
 // Portal imports
-import PortalLoginPage from './pages/portal/PortalLoginPage';
 import PortalQuotePage from './pages/portal/PortalQuotePage';
 import PortalLayout from './components/portal/PortalLayout';
 import PortalDashboard from './pages/portal/PortalDashboard';
@@ -30,7 +30,7 @@ function ProtectedRoute({ children }) {
 
 function PortalProtectedRoute({ children }) {
   const token = localStorage.getItem('df360_portal_token');
-  if (!token) return <Navigate to="/portal/login" replace />;
+  if (!token) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -57,7 +57,7 @@ function AppRoutes() {
       </Route>
 
       {/* 4. Customer Portal — separate layout, separate auth */}
-      <Route path="/portal/login" element={<PortalLoginPage />} />
+      <Route path="/portal/login" element={<Navigate to="/" replace />} />
       <Route path="/portal/quotation/:id" element={<PortalQuotePage />} />
       <Route element={<PortalProtectedRoute><PortalLayout /></PortalProtectedRoute>}>
         <Route path="/portal/dashboard" element={<PortalDashboard />} />
@@ -75,7 +75,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <NotificationProvider>
+          <AppRoutes />
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

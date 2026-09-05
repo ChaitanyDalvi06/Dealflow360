@@ -53,6 +53,13 @@ export default function PipelinePage() {
 
   useEffect(() => {
     fetchPipeline();
+
+    const handleApproved = (e) => {
+      fetchPipeline();
+    };
+
+    window.addEventListener('df360:quotation:approved', handleApproved);
+    return () => window.removeEventListener('df360:quotation:approved', handleApproved);
   }, []);
 
   // Compute summary stats

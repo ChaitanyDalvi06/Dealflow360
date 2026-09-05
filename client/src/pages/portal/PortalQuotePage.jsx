@@ -147,7 +147,7 @@ export default function PortalQuotePage() {
           <AlertCircle size={44} color="#dc3545" />
           <h3>Quotation Not Found</h3>
           <p>{error || 'The link may have expired or is invalid.'}</p>
-          <Link to="/portal/login" className="btn btn-primary">Return to Portal Login</Link>
+          <Link to="/" className="btn btn-primary">Return to Home</Link>
         </div>
       </div>
     );

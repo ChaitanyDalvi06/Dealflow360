@@ -52,8 +52,8 @@ portalApi.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('df360_portal_token');
       localStorage.removeItem('df360_portal_customer');
-      if (!window.location.pathname.includes('/portal/login') && !window.location.pathname.includes('/login')) {
-        window.location.href = '/portal/login';
+      if (!window.location.pathname.includes('/login') && window.location.pathname !== '/') {
+        window.location.href = '/';
       }
     }
     return Promise.reject(error);

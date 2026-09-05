@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Calendar, Bell, ChevronDown, LogOut, User, Globe } from 'lucide-react';
+import { useNotifications } from '../../context/NotificationContext';
+import { Calendar, Bell, ChevronDown, LogOut, User, CheckCircle, Clock, CheckCheck } from 'lucide-react';
 
 export default function TopNav() {
   const { user, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearchKeyDown = (e) => {
@@ -17,7 +20,7 @@ export default function TopNav() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   const displayName = user?.name || 'Chaitanya Dalvi';
@@ -34,11 +37,80 @@ export default function TopNav() {
 
       {/* Right Controls */}
       <div className="top-right-group">
-        {/* Notification Bell with red dot */}
-        <button className="icon-btn notification-btn" title="Notifications">
-          <Bell size={19} />
-          <span className="notif-badge-dot" />
-        </button>
+        {/* Notification Bell with interactive dropdown */}
+        <div className="notification-menu-container" style={{ position: 'relative' }}>
+          <button 
+            className="icon-btn notification-btn" 
+            title="Notifications"
+            onClick={() => {
+              setNotifOpen(!notifOpen);
+              setDropdownOpen(false);
+            }}
+          >
+            <Bell size={19} />
+            {unreadCount > 0 && (
+              <span className="notif-badge-pill">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </button>
+
+          {notifOpen && (
+            <div className="notif-dropdown-card">
+              <div className="notif-dropdown-header">
+                <div className="notif-header-title">
+                  <strong>Notifications</strong>
+                  {unreadCount > 0 && <span className="notif-count-tag">{unreadCount} new</span>}
+                </div>
+                {unreadCount > 0 && (
+                  <button className="notif-mark-all-btn" onClick={markAllAsRead}>
+                    <CheckCheck size={14} /> Mark all read
+                  </button>
+                )}
+              </div>
+
+              <div className="notif-dropdown-list">
+                {notifications.length === 0 ? (
+                  <div className="notif-empty-state">
+                    <CheckCircle size={32} color="#10b981" />
+                    <p>You're all caught up!</p>
+                    <span>No pending notifications</span>
+                  </div>
+                ) : (
+                  notifications.map((n) => (
+                    <div
+                      key={n.id}
+                      className={`notif-item-row ${!n.read ? 'notif-unread' : ''}`}
+                      onClick={() => {
+                        markAsRead(n.id);
+                        if (n.entityId) {
+                          if (user?.role === 'FINANCE' || user?.role === 'SALES_MANAGER') {
+                            navigate('/approvals');
+                          } else {
+                            navigate('/pipeline');
+                          }
+                          setNotifOpen(false);
+                        }
+                      }}
+                    >
+                      <div className="notif-item-icon">
+                        <CheckCircle size={18} color="#10b981" />
+                      </div>
+                      <div className="notif-item-content">
+                        <div className="notif-item-title">{n.title}</div>
+                        <div className="notif-item-msg">{n.message}</div>
+                        <div className="notif-item-time">
+                          <Clock size={11} /> {new Date(n.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </div>
+                      {!n.read && <span className="notif-unread-dot" />}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* User Profile Dropdown */}
         <div className="user-profile-menu-container">
@@ -67,15 +139,6 @@ export default function TopNav() {
                 <div className="d-email">{user?.email || 'sales@gmail.com'}</div>
               </div>
               <div className="dropdown-divider" />
-              <button
-                className="dropdown-item"
-                onClick={() => {
-                  window.open('/portal/login', '_blank');
-                  setDropdownOpen(false);
-                }}
-              >
-                <Globe size={15} /> Customer Portal
-              </button>
               <button
                 className="dropdown-item"
                 onClick={() => {

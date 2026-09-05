@@ -104,6 +104,7 @@ model ApprovalConfig {
   id               String  @id @default(uuid())
   managerThreshold Decimal @db.Decimal(5, 2) @default(0)
   financeThreshold Decimal @db.Decimal(5, 2) @default(5)
+  minMarginFloor   Decimal @db.Decimal(5, 2) @default(20)
 }
 
 // ─── QUOTATIONS ────────────────────────────────────────────
@@ -398,3 +399,18 @@ model Message {
   content       String
   createdAt     DateTime    @default(now())
 }
+
+// ─── NOTIFICATIONS ─────────────────────────────────────────
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String?
+  targetRole String?  // 'ADMIN' | 'SALES_MANAGER' | 'SALES_REP' | 'FINANCE' | 'CUSTOMER' | 'ALL'
+  title      String
+  message    String
+  type       String   @default("APPROVAL") // APPROVAL | SYSTEM | REVISION
+  entityId   String?  // quotationId
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+

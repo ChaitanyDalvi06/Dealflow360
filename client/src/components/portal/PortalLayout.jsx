@@ -33,7 +33,7 @@ export default function PortalLayout() {
   const handleLogout = () => {
     localStorage.removeItem('df360_portal_token');
     localStorage.removeItem('df360_portal_customer');
-    navigate('/portal/login');
+    navigate('/');
   };
 
   return (

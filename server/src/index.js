@@ -15,6 +15,7 @@ import dashboardRoutes from './routes/dashboard.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import configRoutes from './routes/config.routes.js';
 import repRoutes from './routes/rep.routes.js';
+import notificationRoutes from './routes/notification.routes.js';
 import { setupWebSocket } from './websocket/dashboard.ws.js';
 import { setupChatSocket } from './websocket/chat.ws.js';
 
@@ -50,6 +51,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/reps', repRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ─── Health check ───────────────────────────────────────────
 app.get('/api/health', (req, res) => {

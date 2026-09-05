@@ -29,6 +29,11 @@ export default function ApprovalPage() {
 
   useEffect(() => {
     fetchApprovals();
+    const handleApproved = () => {
+      fetchApprovals();
+    };
+    window.addEventListener('df360:quotation:approved', handleApproved);
+    return () => window.removeEventListener('df360:quotation:approved', handleApproved);
   }, []);
 
   const handleActionSubmit = async () => {
@@ -106,7 +111,7 @@ export default function ApprovalPage() {
                 <div className="ticket-customer-section">
                   <div className="ticket-customer-name">
                     <strong>{q.customer?.name}</strong>
-                    <span>{q.customer?.companyName || 'Corporate Client'}</span>
+                    <span>{q.customer?.company || q.customer?.companyName || 'Corporate Client'}</span>
                   </div>
                   <span className={`badge badge-sm ${getStatusBadgeClass(q.customer?.tier)}`}>
                     {q.customer?.tier} Tier
@@ -116,31 +121,31 @@ export default function ApprovalPage() {
                 <div className="ticket-financial-grid">
                   <div className="fin-box">
                     <span className="fin-box-lbl">Net Deal Value</span>
-                    <span className="fin-box-val font-mono">{formatCurrency(q.totalAmount)}</span>
+                    <span className="fin-box-val font-mono">{formatCurrency(q.orderTotal ?? q.totalAmount ?? 0)}</span>
                   </div>
                   <div className="fin-box">
                     <span className="fin-box-lbl">Total Discount</span>
                     <span className="fin-box-val font-mono text-danger">
-                      {formatCurrency(q.totalDiscount)}
+                      {formatCurrency(q.totalDiscount ?? 0)}
                     </span>
                   </div>
                   <div className="fin-box">
                     <span className="fin-box-lbl">Gross Margin</span>
                     <span className="fin-box-val font-mono">
-                      {formatPercent(q.marginPct || 0)}
+                      {formatPercent(q.marginPct ?? (q.orderTotal > 0 ? (q.totalMargin / q.orderTotal) * 100 : 0))}
                     </span>
                   </div>
                   <div className="fin-box">
                     <span className="fin-box-lbl">Blended Risk</span>
                     <span className="fin-box-val font-mono">
-                      {Math.round(q.riskScore || 0)} / 100
+                      {Math.round(q.blendedRiskScore ?? q.riskScore ?? 0)} / 100
                     </span>
                   </div>
                 </div>
 
                 {/* Sales rep who initiated */}
                 <div className="ticket-rep-info">
-                  <User size={14} /> Requested by: <strong>{q.salesRep?.name || 'Sales Representative'}</strong>
+                  <User size={14} /> Requested by: <strong>{q.rep?.name || q.salesRep?.name || 'Sales Representative'}</strong>
                 </div>
 
                 {/* Trigger reason */}
@@ -148,7 +153,7 @@ export default function ApprovalPage() {
                   <AlertCircle size={15} />
                   <span>
                     {approval.escalationReason ||
-                      `Discount exceeded tier standard threshold of ${q.customer?.maxDiscountLimit || 15}%.`}
+                      `Discount requires ${approval.approverRole === 'FINANCE' ? 'Finance' : 'Sales Manager'} authorization.`}
                   </span>
                 </div>
 
@@ -163,19 +168,19 @@ export default function ApprovalPage() {
 
                   <div className="decision-button-group">
                     <button
-                      className="btn btn-sm btn-outline-warning"
+                      className="btn btn-outline-warning btn-sm"
                       onClick={() => setActionModal({ type: 'RETURN', approval })}
                     >
                       <CornerUpLeft size={14} /> Return
                     </button>
                     <button
-                      className="btn btn-sm btn-outline-danger"
+                      className="btn btn-outline-danger btn-sm"
                       onClick={() => setActionModal({ type: 'REJECT', approval })}
                     >
                       <XCircle size={14} /> Reject
                     </button>
                     <button
-                      className="btn btn-sm btn-success"
+                      className="btn btn-success btn-sm font-bold"
                       onClick={() => setActionModal({ type: 'APPROVE', approval })}
                     >
                       <CheckCircle size={14} /> Approve
@@ -188,13 +193,13 @@ export default function ApprovalPage() {
         </div>
       )}
 
-      {/* Quote Details Modal */}
+      {/* Details Slide-out / Modal */}
       {selectedApproval && (
         <div className="modal-backdrop">
           <div className="modal-content modal-lg">
             <div className="modal-header">
-              <h3>Quotation #{selectedApproval.quotation.quoteNumber} Breakdown</h3>
-              <button className="btn-close" onClick={() => setSelectedApproval(null)}>×</button>
+              <h3>Quotation {selectedApproval.quotation.quoteNumber || selectedApproval.quotation.id?.slice(0, 8)} Breakdown</h3>
+              <button className="close-btn" onClick={() => setSelectedApproval(null)}>×</button>
             </div>
             <div className="modal-body">
               <div className="quote-detail-summary">
@@ -208,7 +213,7 @@ export default function ApprovalPage() {
                 <thead>
                   <tr>
                     <th>Product</th>
-                    <th>Type</th>
+                    <th>Category</th>
                     <th>Qty</th>
                     <th>Unit Price</th>
                     <th>Discount</th>
@@ -218,12 +223,12 @@ export default function ApprovalPage() {
                 <tbody>
                   {selectedApproval.quotation.lines?.map(l => (
                     <tr key={l.id}>
-                      <td><strong>{l.product?.name}</strong> <small>({l.product?.sku})</small></td>
-                      <td><span className="badge badge-sm">{l.product?.billingType}</span></td>
+                      <td><strong>{l.product?.name}</strong></td>
+                      <td><span className="badge badge-sm">{l.product?.category || 'Hardware'}</span></td>
                       <td>{l.quantity}</td>
                       <td className="font-mono">{formatCurrency(l.unitPrice)}</td>
                       <td className="text-danger">{l.discountPct}%</td>
-                      <td className="font-mono">{formatCurrency(l.total)}</td>
+                      <td className="font-mono">{formatCurrency(l.lineTotal ?? l.total ?? 0)}</td>
                     </tr>
                   ))}
                 </tbody>

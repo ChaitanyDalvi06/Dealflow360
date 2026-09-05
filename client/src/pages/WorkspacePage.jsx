@@ -86,6 +86,18 @@ export default function WorkspacePage() {
       }
     };
     fetchData();
+
+    const handleApproved = (e) => {
+      if (quoteIdParam && e?.detail?.quotationId === quoteIdParam) {
+        setCurrentQuote(prev => prev ? { ...prev, status: 'APPROVED' } : prev);
+        setFeedback({
+          type: 'success',
+          message: `🎉 Great news! Quotation ${e.detail.quoteNumber} has been officially approved by Finance!`,
+        });
+      }
+    };
+    window.addEventListener('df360:quotation:approved', handleApproved);
+    return () => window.removeEventListener('df360:quotation:approved', handleApproved);
   }, [quoteIdParam]);
 
   // Fetch discount limits ONCE on mount (Feature 4 — cached)
