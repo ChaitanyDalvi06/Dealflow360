@@ -17,17 +17,12 @@ export default function PortalLoginPage() {
     try {
       const res = await api.post('/auth/portal/login', {
         email,
-        password: magicToken || 'customer123'
+        password: magicToken || 'buyer123'
       });
-      localStorage.setItem('df_portal_token', res.data.token);
-      localStorage.setItem('df_portal_customer', JSON.stringify(res.data.customer));
+      localStorage.setItem('df360_portal_token', res.data.token);
+      localStorage.setItem('df360_portal_customer', JSON.stringify(res.data.customer));
       
-      // If customer has quotes, redirect to their first quote or portal home
-      if (res.data.customer?.latestQuoteToken) {
-        navigate(`/portal/quote/${res.data.customer.latestQuoteToken}`);
-      } else {
-        navigate('/');
-      }
+      navigate('/portal/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Authentication failed. Please verify credentials.');
     } finally {
@@ -35,18 +30,19 @@ export default function PortalLoginPage() {
     }
   };
 
-  const handleQuickCustomer = async (custEmail) => {
+  const handleQuickCustomer = async (custEmail, custPass = 'buyer123') => {
     setEmail(custEmail);
+    setMagicToken(custPass);
     setError('');
     setLoading(true);
     try {
       const res = await api.post('/auth/portal/login', {
         email: custEmail,
-        password: 'customer123'
+        password: custPass
       });
-      localStorage.setItem('df_portal_token', res.data.token);
-      localStorage.setItem('df_portal_customer', JSON.stringify(res.data.customer));
-      navigate('/');
+      localStorage.setItem('df360_portal_token', res.data.token);
+      localStorage.setItem('df360_portal_customer', JSON.stringify(res.data.customer));
+      navigate('/portal/dashboard');
     } catch (err) {
       setError('Quick login failed: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -75,7 +71,7 @@ export default function PortalLoginPage() {
               <input
                 type="email"
                 className="form-control"
-                placeholder="procurement@techcorp.in"
+                placeholder="buyer@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -90,7 +86,7 @@ export default function PortalLoginPage() {
               <input
                 type="password"
                 className="form-control"
-                placeholder="•••••••• (default: customer123)"
+                placeholder="•••••••• (default: buyer123)"
                 value={magicToken}
                 onChange={(e) => setMagicToken(e.target.value)}
               />
@@ -104,21 +100,14 @@ export default function PortalLoginPage() {
         </form>
 
         <div className="portal-demo-helpers">
-          <p className="demo-label">Quick Customer Accounts:</p>
+          <p className="demo-label">Quick Customer Login:</p>
           <div className="demo-chips">
             <button
               type="button"
               className="demo-chip"
-              onClick={() => handleQuickCustomer('customer@acmecorp.com')}
+              onClick={() => handleQuickCustomer('buyer@gmail.com', 'buyer123')}
             >
-              <strong>Acme Corp</strong> (Platinum)
-            </button>
-            <button
-              type="button"
-              className="demo-chip"
-              onClick={() => handleQuickCustomer('procurement@techcorp.in')}
-            >
-              <strong>TechCorp</strong> (Gold)
+              <strong>Buyer Account</strong> (buyer@gmail.com)
             </button>
           </div>
         </div>

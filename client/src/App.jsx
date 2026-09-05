@@ -11,8 +11,14 @@ import BillingPage from './pages/BillingPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
 import ReportsPage from './pages/ReportsPage';
+
+// Portal imports
 import PortalLoginPage from './pages/portal/PortalLoginPage';
 import PortalQuotePage from './pages/portal/PortalQuotePage';
+import PortalLayout from './components/portal/PortalLayout';
+import PortalDashboard from './pages/portal/PortalDashboard';
+import PortalNewRequirement from './pages/portal/PortalNewRequirement';
+import PortalRequirementDetail from './pages/portal/PortalRequirementDetail';
 
 import LandingPage from './pages/LandingPage';
 
@@ -20,6 +26,12 @@ function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
   if (loading) return <div className="loading-page"><div className="spinner" /><p>Loading...</p></div>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+function PortalProtectedRoute({ children }) {
+  const token = localStorage.getItem('df360_portal_token');
+  if (!token) return <Navigate to="/portal/login" replace />;
+  return children;
 }
 
 function AppRoutes() {
@@ -44,9 +56,14 @@ function AppRoutes() {
         <Route path="/reports" element={<ReportsPage />} />
       </Route>
 
-      {/* 4. Customer Portal */}
+      {/* 4. Customer Portal — separate layout, separate auth */}
       <Route path="/portal/login" element={<PortalLoginPage />} />
       <Route path="/portal/quotation/:id" element={<PortalQuotePage />} />
+      <Route element={<PortalProtectedRoute><PortalLayout /></PortalProtectedRoute>}>
+        <Route path="/portal/dashboard" element={<PortalDashboard />} />
+        <Route path="/portal/new-requirement" element={<PortalNewRequirement />} />
+        <Route path="/portal/requirement/:id" element={<PortalRequirementDetail />} />
+      </Route>
 
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />

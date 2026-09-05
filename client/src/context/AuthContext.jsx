@@ -21,14 +21,17 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     const response = await api.post('/auth/login', { email, password });
-    const { user: userData, token: authToken } = response.data;
+    const { user: userData, token: authToken, customer: customerData } = response.data;
 
     setUser(userData);
     setToken(authToken);
     localStorage.setItem('df360_token', authToken);
     localStorage.setItem('df360_user', JSON.stringify(userData));
+    if (customerData) {
+      localStorage.setItem('df360_portal_customer', JSON.stringify(customerData));
+    }
 
-    return userData;
+    return { ...userData, customer: customerData };
   };
 
   const signup = async (name, email, password, role = 'SALES_REP') => {

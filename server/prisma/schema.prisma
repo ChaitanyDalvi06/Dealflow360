@@ -17,9 +17,10 @@ model User {
   role         Role     @default(SALES_REP)
   createdAt    DateTime @default(now())
 
-  quotations    Quotation[]
-  approvalSteps ApprovalStep[] @relation("Approver")
-  auditLogs     AuditLog[]
+  quotations             Quotation[]
+  approvalSteps          ApprovalStep[] @relation("Approver")
+  auditLogs              AuditLog[]
+  assignedRequirements   Requirement[]  @relation("AssignedRep")
 }
 
 enum Role {
@@ -41,7 +42,8 @@ model Customer {
   magicToken   String?
   createdAt    DateTime     @default(now())
 
-  quotations Quotation[]
+  quotations   Quotation[]
+  requirements Requirement[]
 }
 
 enum CustomerTier {
@@ -110,6 +112,7 @@ model Quotation {
   id               String          @id @default(uuid())
   customerId       String
   repId            String
+  requirementId    String?
   status           QuotationStatus @default(DRAFT)
   blendedRiskScore Decimal?        @db.Decimal(5, 2)
   orderTotal       Decimal         @db.Decimal(12, 2) @default(0)
@@ -120,6 +123,7 @@ model Quotation {
 
   customer        Customer           @relation(fields: [customerId], references: [id])
   rep             User               @relation(fields: [repId], references: [id])
+  requirement     Requirement?       @relation(fields: [requirementId], references: [id])
   lines           QuotationLine[]
   approvalSteps   ApprovalStep[]
   warehouseSplits WarehouseSplit[]
@@ -136,6 +140,7 @@ enum QuotationStatus {
   PENDING_FINANCE
   APPROVED
   REJECTED
+  NEEDS_REVISION
   CONFIRMED
   IN_FULFILLMENT
   COMPLETED
@@ -364,4 +369,32 @@ model UpsellRule {
   isPromoted      Boolean @default(false)
 
   @@unique([sourceProductId, targetProductId])
+}
+
+// ─── REQUIREMENTS & CHAT ───────────────────────────────────
+
+model Requirement {
+  id            String      @id @default(cuid())
+  customerId    String
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  title         String
+  notes         String
+  desiredItems  Json        // [{ productId, quantity }]
+  status        String      @default("NEW") // NEW | ASSIGNED | QUOTED | CLOSED
+  assignedRepId String?
+  assignedRep   User?       @relation("AssignedRep", fields: [assignedRepId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  messages      Message[]
+  quotations    Quotation[]
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id])
+  senderId      String
+  senderRole    String      // SALES_REP | CUSTOMER
+  content       String
+  createdAt     DateTime    @default(now())
 }

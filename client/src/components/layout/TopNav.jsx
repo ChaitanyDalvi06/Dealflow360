@@ -64,7 +64,7 @@ export default function TopNav() {
             <div className="profile-dropdown-card">
               <div className="dropdown-header-info">
                 <div className="d-name">{displayName}</div>
-                <div className="d-email">{user?.email || 'chaitanya@dealflow.io'}</div>
+                <div className="d-email">{user?.email || 'sales@gmail.com'}</div>
               </div>
               <div className="dropdown-divider" />
               <button

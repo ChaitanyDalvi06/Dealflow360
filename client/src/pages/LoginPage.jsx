@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
 export default function LoginPage() {
-  const [currentMode, setCurrentMode] = useState('workspace'); // 'workspace' | 'customer'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -18,42 +17,35 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (currentMode === 'workspace') {
-        await login(email, password);
-        navigate('/dashboard');
-      } else {
-        // Customer Portal Authentication
+      try {
+        const loggedUser = await login(email, password);
+        // Route according to role
+        if (loggedUser.role === 'CUSTOMER') {
+          localStorage.setItem('df360_portal_token', localStorage.getItem('df360_token'));
+          if (loggedUser.customer) {
+            localStorage.setItem('df360_portal_customer', JSON.stringify(loggedUser.customer));
+          } else {
+            localStorage.setItem('df360_portal_customer', JSON.stringify({ id: loggedUser.id, name: loggedUser.name, email: loggedUser.email }));
+          }
+          navigate('/portal/dashboard');
+        } else if (loggedUser.role === 'SALES_REP') {
+          navigate('/workspace');
+        } else if (loggedUser.role === 'SALES_MANAGER' || loggedUser.role === 'FINANCE') {
+          navigate('/approvals');
+        } else if (loggedUser.role === 'ADMIN') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (internalErr) {
+        // Fallback for customer portal authentication
         const res = await api.post('/auth/portal/login', { email, password });
-        localStorage.setItem('df_portal_token', res.data.token);
-        localStorage.setItem('df_portal_customer', JSON.stringify(res.data.customer));
-        navigate('/dashboard');
+        localStorage.setItem('df360_portal_token', res.data.token);
+        localStorage.setItem('df360_portal_customer', JSON.stringify(res.data.customer));
+        navigate('/portal/dashboard');
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid credentials. Please verify your email and password.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async (demoEmail, demoPass, mode = 'workspace') => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setCurrentMode(mode);
-    setError('');
-    setLoading(true);
-
-    try {
-      if (mode === 'workspace') {
-        await login(demoEmail, demoPass);
-        navigate('/dashboard');
-      } else {
-        const res = await api.post('/auth/portal/login', { email: demoEmail, password: demoPass });
-        localStorage.setItem('df_portal_token', res.data.token);
-        localStorage.setItem('df_portal_customer', JSON.stringify(res.data.customer));
-        navigate('/dashboard');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Quick login failed. Please check credentials.');
     } finally {
       setLoading(false);
     }
@@ -63,15 +55,9 @@ export default function LoginPage() {
     <div className="login-page-root">
       {/* Top Simple Navigation */}
       <header className="login-nav">
-        <Link to="/" className="logo">
+        <Link to="/#hero" className="logo">
           DealFlow360<span className="logo-dot"></span>
         </Link>
-        <div className="nav-links-right">
-          <Link to="/" className="nav-link">Home</Link>
-          <Link to="/signup" className="nav-link" style={{ color: 'var(--navy-deep)', fontWeight: 700 }}>
-            Create Account
-          </Link>
-        </div>
       </header>
 
       {/* Main Split Layout */}
@@ -136,72 +122,9 @@ export default function LoginPage() {
         <section className="form-panel">
           <div className="form-container">
             <div className="form-header">
-              <h2>{currentMode === 'workspace' ? 'Log in to portal' : 'Customer Negotiation Portal'}</h2>
-              <p>
-                {currentMode === 'workspace'
-                  ? 'Enter your credentials to enter your workspace.'
-                  : 'Access your live quotation and submit terms.'}
-              </p>
+              <h2>Log in to DealFlow360</h2>
+              <p>Enter your email and password to access your account.</p>
             </div>
-
-            {/* Role / Mode Toggle */}
-            <div className="portal-tabs">
-              <button
-                type="button"
-                className={`portal-tab-btn ${currentMode === 'workspace' ? 'active' : ''}`}
-                onClick={() => setCurrentMode('workspace')}
-              >
-                Sales Workspace
-              </button>
-              <button
-                type="button"
-                className={`portal-tab-btn ${currentMode === 'customer' ? 'active' : ''}`}
-                onClick={() => setCurrentMode('customer')}
-              >
-                Customer Portal
-              </button>
-            </div>
-
-            {/* Quick Demo Credentials Bar */}
-            <div className="quick-demo-section">
-              <div className="quick-demo-title">Default Hackathon Logins:</div>
-              <div className="quick-demo-grid">
-                <button
-                  type="button"
-                  className="quick-demo-btn"
-                  onClick={() => handleQuickLogin('admin@gmail.com', 'admin123', 'workspace')}
-                >
-                  <span className="demo-role">Admin</span>
-                  <span className="demo-email">admin@gmail.com</span>
-                </button>
-                <button
-                  type="button"
-                  className="quick-demo-btn"
-                  onClick={() => handleQuickLogin('sales@gmail.com', 'sales123', 'workspace')}
-                >
-                  <span className="demo-role">Sales Rep</span>
-                  <span className="demo-email">sales@gmail.com</span>
-                </button>
-                <button
-                  type="button"
-                  className="quick-demo-btn"
-                  onClick={() => handleQuickLogin('marketing@gmail.com', 'marketing123', 'workspace')}
-                >
-                  <span className="demo-role">Manager</span>
-                  <span className="demo-email">marketing@gmail.com</span>
-                </button>
-                <button
-                  type="button"
-                  className="quick-demo-btn"
-                  onClick={() => handleQuickLogin('buyer@gmail.com', 'buyer123', 'customer')}
-                >
-                  <span className="demo-role">Buyer</span>
-                  <span className="demo-email">buyer@gmail.com</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="divider-row">or sign in with credentials</div>
 
             {error && (
               <div className="login-error-alert">
@@ -219,13 +142,13 @@ export default function LoginPage() {
               <div className="form-grid">
                 <div className="form-group">
                   <label className="form-label" htmlFor="loginEmail">
-                    {currentMode === 'workspace' ? 'Corporate Email' : 'Customer Email or ID'}
+                    Email
                   </label>
                   <input
                     type="email"
                     id="loginEmail"
                     className="form-input"
-                    placeholder={currentMode === 'workspace' ? 'rep@company.com' : 'buyer@clientcorp.com'}
+                    placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -260,13 +183,7 @@ export default function LoginPage() {
                 </div>
 
                 <button type="submit" className="btn-submit" disabled={loading}>
-                  <span>
-                    {loading
-                      ? 'Authenticating...'
-                      : currentMode === 'workspace'
-                      ? 'Sign in to Workspace'
-                      : 'Open Negotiation Portal'}
-                  </span>
+                  <span>{loading ? 'Authenticating...' : 'Sign In'}</span>
                   {!loading && (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                       <line x1="5" y1="12" x2="19" y2="12" />

@@ -20,10 +20,16 @@ async function main() {
       role: 'SALES_REP',
     },
     {
-      email: 'marketing@gmail.com',
-      name: 'Marketing / Sales Manager',
-      pass: 'marketing123',
+      email: 'manager@gmail.com',
+      name: 'Sales Manager',
+      pass: 'manager123',
       role: 'SALES_MANAGER',
+    },
+    {
+      email: 'finance@gmail.com',
+      name: 'Finance Officer',
+      pass: 'finance123',
+      role: 'FINANCE',
     },
     {
       email: 'buyer@gmail.com',

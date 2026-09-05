@@ -8,6 +8,8 @@ async function main() {
   console.log('🌱 Seeding DealFlow360 database...\n');
 
   // ─── CLEAR EXISTING DATA ─────────────────────────────────
+  await prisma.message.deleteMany();
+  await prisma.requirement.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.billingSchedule.deleteMany();
@@ -32,18 +34,11 @@ async function main() {
   await prisma.user.deleteMany();
 
   // ─── USERS ────────────────────────────────────────────────
-  const passwordHash = await bcrypt.hash('password123', 10);
-
   const usersData = [
-    { name: 'Admin User', email: 'admin@dealflow.io', passwordHash, role: 'ADMIN' },
-    { name: 'Aarav Sharma', email: 'sales@dealflow.io', passwordHash, role: 'SALES_REP' },
-    { name: 'Priya Patel', email: 'manager@dealflow.io', passwordHash, role: 'SALES_MANAGER' },
-    { name: 'Vikram Malhotra', email: 'director@dealflow.io', passwordHash, role: 'SALES_MANAGER' },
-    { name: 'Anita Desai', email: 'finance@dealflow.io', passwordHash, role: 'FINANCE' },
-    // Requested Default Accounts
     { name: 'System Admin', email: 'admin@gmail.com', passwordHash: await bcrypt.hash('admin123', 10), role: 'ADMIN' },
     { name: 'Sales Executive', email: 'sales@gmail.com', passwordHash: await bcrypt.hash('sales123', 10), role: 'SALES_REP' },
-    { name: 'Marketing / Sales Manager', email: 'marketing@gmail.com', passwordHash: await bcrypt.hash('marketing123', 10), role: 'SALES_MANAGER' },
+    { name: 'Sales Manager', email: 'manager@gmail.com', passwordHash: await bcrypt.hash('manager123', 10), role: 'SALES_MANAGER' },
+    { name: 'Finance Officer', email: 'finance@gmail.com', passwordHash: await bcrypt.hash('finance123', 10), role: 'FINANCE' },
     { name: 'Enterprise Buyer', email: 'buyer@gmail.com', passwordHash: await bcrypt.hash('buyer123', 10), role: 'CUSTOMER' },
   ];
 
@@ -252,11 +247,78 @@ async function main() {
   await prisma.orderHistory.createMany({ data: orderHistoryEntries });
   console.log(`✅ Created ${orderHistoryEntries.length} order history records`);
 
+  // ─── REQUIREMENTS & MESSAGES (Demo data) ──────────────────
+  const salesRep = users.find(u => u.email === 'sales@gmail.com');
+  const buyerCust = customers.find(c => c.email === 'buyer@gmail.com');
+
+  const req1 = await prisma.requirement.create({
+    data: {
+      customerId: buyerCust.id,
+      title: 'Q3 IT Infrastructure Refresh',
+      notes: 'Need 25 laptops and monitors for the new Pune office. Also need network switches for the server room. Delivery needed by end of October.',
+      desiredItems: [
+        { productId: products.find(p => p.name.includes('Laptop')).id, quantity: 25 },
+        { productId: products.find(p => p.name.includes('Monitor')).id, quantity: 25 },
+        { productId: products.find(p => p.name.includes('NetSwitch')).id, quantity: 3 },
+        { productId: products.find(p => p.name.includes('Setup')).id, quantity: 1 },
+      ],
+      status: 'ASSIGNED',
+      assignedRepId: salesRep.id,
+    },
+  });
+
+  const req2 = await prisma.requirement.create({
+    data: {
+      customerId: buyerCust.id,
+      title: 'Analytics Platform Licensing',
+      notes: 'Looking to license DataViz Analytics for our entire data science team (15 users). Need training included.',
+      desiredItems: [
+        { productId: products.find(p => p.name.includes('DataViz')).id, quantity: 15 },
+        { productId: products.find(p => p.name.includes('Training')).id, quantity: 1 },
+      ],
+      status: 'NEW',
+    },
+  });
+
+  // Chat messages for req1
+  await prisma.message.createMany({
+    data: [
+      {
+        requirementId: req1.id,
+        senderId: buyerCust.id,
+        senderRole: 'CUSTOMER',
+        content: 'Hi, we submitted our IT refresh requirement. Can you confirm estimated delivery timeline?',
+      },
+      {
+        requirementId: req1.id,
+        senderId: salesRep.id,
+        senderRole: 'SALES_REP',
+        content: 'Hello! I\'ve reviewed your requirement. We have all items in stock across our Mumbai and Delhi warehouses. I\'ll prepare a quotation shortly.',
+      },
+      {
+        requirementId: req1.id,
+        senderId: buyerCust.id,
+        senderRole: 'CUSTOMER',
+        content: 'Great! Can you also include bulk pricing? We\'re a Gold tier customer.',
+      },
+      {
+        requirementId: req1.id,
+        senderId: salesRep.id,
+        senderRole: 'SALES_REP',
+        content: 'Absolutely. Gold tier pricing will be applied automatically. I\'ll also check what discounts I can offer on the hardware bundle. Expect the quote within the hour.',
+      },
+    ],
+  });
+
+  console.log(`✅ Created ${2} requirements with chat messages`);
+
   console.log('\n🎉 Seed complete! DealFlow360 database is populated and ready.\n');
   console.log('Login credentials:');
-  console.log('  Admin:       admin@dealflow.io / password123');
-  console.log('  Sales Rep:   sales@dealflow.io / password123');
-  console.log('  Manager:     manager@dealflow.io / password123');
+  console.log('  Admin:       admin@gmail.com / admin123');
+  console.log('  Sales Rep:   sales@gmail.com / sales123');
+  console.log('  Manager:     manager@gmail.com / manager123');
+  console.log('  Finance:     finance@gmail.com / finance123');
+  console.log('  Buyer:       buyer@gmail.com / buyer123');
 }
 
 main()

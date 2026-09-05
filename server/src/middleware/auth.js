@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import prisma from '../config/db.js';
 import { config } from '../config/env.js';
 
 /**
@@ -46,9 +47,9 @@ export function authorize(...roles) {
 
 /**
  * Customer portal authentication middleware.
- * Verifies customer-specific JWT tokens.
+ * Verifies customer-specific JWT tokens and guarantees resolution of the Customer DB record.
  */
-export function authenticateCustomer(req, res, next) {
+export async function authenticateCustomer(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Portal authentication required' });
@@ -57,10 +58,34 @@ export function authenticateCustomer(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
-    if (decoded.type !== 'customer') {
+    if (decoded.type !== 'customer' && decoded.role !== 'CUSTOMER') {
       return res.status(403).json({ error: 'Customer portal access only' });
     }
-    req.customer = decoded;
+
+    // Always resolve the real Customer database record
+    let customer = null;
+    if (decoded.customerId) {
+      customer = await prisma.customer.findUnique({ where: { id: decoded.customerId } });
+    }
+    if (!customer && decoded.id) {
+      customer = await prisma.customer.findUnique({ where: { id: decoded.id } });
+    }
+    if (!customer && decoded.email) {
+      customer = await prisma.customer.findUnique({ where: { email: decoded.email } });
+    }
+
+    if (!customer) {
+      return res.status(403).json({ error: 'No associated customer account found for this user' });
+    }
+
+    req.customer = {
+      ...decoded,
+      id: customer.id,
+      email: customer.email,
+      name: customer.name,
+      tier: customer.tier,
+      company: customer.company,
+    };
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired portal token' });

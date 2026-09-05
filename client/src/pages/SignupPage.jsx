@@ -71,11 +71,8 @@ export default function SignupPage() {
     <div className="signup-page-root">
       {/* Top Navigation */}
       <header className="signup-nav">
-        <Link to="/" className="logo">
+        <Link to="/#hero" className="logo">
           DealFlow360<span className="logo-dot"></span>
-        </Link>
-        <Link to="/login" className="nav-back-link">
-          <span>&larr;</span> Back to Login
         </Link>
       </header>
 

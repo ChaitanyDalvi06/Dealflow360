@@ -164,38 +164,140 @@ router.get('/:id', authenticate, async (req, res, next) => {
   }
 });
 
+// Helper to save/replace quotation line items and recalculate totals
+async function saveQuotationLines(quotationId, lines) {
+  if (!lines || !Array.isArray(lines) || lines.length === 0) return;
+
+  // Clear existing lines
+  await prisma.quotationLine.deleteMany({ where: { quotationId } });
+
+  for (const item of lines) {
+    const product = await prisma.product.findUnique({ where: { id: item.productId } });
+    if (!product) continue;
+
+    const unitPrice = item.unitPrice !== undefined ? Number(item.unitPrice) : Number(product.basePrice);
+    const quantity = Number(item.quantity || 1);
+    const discountPct = Number(item.discountPct || 0);
+
+    const discountedPrice = unitPrice * (1 - discountPct / 100);
+    const lineTotal = discountedPrice * quantity;
+    const lineMargin = lineTotal * (Number(product.margin) / 100);
+
+    await prisma.quotationLine.create({
+      data: {
+        quotationId,
+        productId: item.productId,
+        quantity,
+        unitPrice,
+        discountPct,
+        lineTotal: Math.round(lineTotal * 100) / 100,
+        lineMargin: Math.round(lineMargin * 100) / 100,
+        isRecurring: product.isRecurring,
+      },
+    });
+  }
+
+  await recalculateQuotationTotals(quotationId);
+}
+
 // ─── CREATE QUOTATION ──────────────────────────────────────
 router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
-    const { customerId, notes } = req.body;
+    const { customerId, notes, requirementId, lines } = req.body;
 
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
 
+    const quotationData = {
+      customerId,
+      repId: req.user.id,
+      status: 'DRAFT',
+      notes,
+      orderTotal: 0,
+      totalMargin: 0,
+    };
+
+    // Link to requirement if provided
+    if (requirementId) {
+      const requirement = await prisma.requirement.findUnique({ where: { id: requirementId } });
+      if (!requirement) return res.status(404).json({ error: 'Requirement not found' });
+      quotationData.requirementId = requirementId;
+
+      // Update requirement status
+      await prisma.requirement.update({
+        where: { id: requirementId },
+        data: { status: 'QUOTED' },
+      });
+    }
+
     const quotation = await prisma.quotation.create({
-      data: {
-        customerId,
-        repId: req.user.id,
-        status: 'DRAFT',
-        notes,
-        orderTotal: 0,
-        totalMargin: 0,
-      },
+      data: quotationData,
       include: {
         customer: { select: { id: true, name: true, tier: true, company: true } },
         rep: { select: { id: true, name: true } },
       },
     });
 
+    // If lines provided, save them
+    if (lines && Array.isArray(lines) && lines.length > 0) {
+      await saveQuotationLines(quotation.id, lines);
+    }
+
     await createAuditLog({
       entityType: 'Quotation',
       entityId: quotation.id,
       actorId: req.user.id,
       action: 'CREATED',
-      reason: `New quotation for ${customer.name}`,
+      reason: `New quotation for ${customer.name}${requirementId ? ' (from requirement)' : ''}`,
     });
 
-    res.status(201).json(quotation);
+    const fullQuotation = await prisma.quotation.findUnique({
+      where: { id: quotation.id },
+      include: {
+        customer: { select: { id: true, name: true, tier: true, company: true } },
+        rep: { select: { id: true, name: true } },
+        lines: { include: { product: true } },
+      },
+    });
+
+    res.status(201).json(fullQuotation);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── UPDATE QUOTATION (DRAFT) ──────────────────────────────
+router.put('/:id', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
+  try {
+    const { customerId, notes, lines } = req.body;
+    const quotation = await prisma.quotation.findUnique({ where: { id: req.params.id } });
+    if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
+
+    const updateData = {};
+    if (customerId) updateData.customerId = customerId;
+    if (notes !== undefined) updateData.notes = notes;
+
+    if (Object.keys(updateData).length > 0) {
+      await prisma.quotation.update({
+        where: { id: req.params.id },
+        data: updateData,
+      });
+    }
+
+    if (lines && Array.isArray(lines)) {
+      await saveQuotationLines(req.params.id, lines);
+    }
+
+    const updated = await prisma.quotation.findUnique({
+      where: { id: req.params.id },
+      include: {
+        customer: { select: { id: true, name: true, tier: true, company: true } },
+        rep: { select: { id: true, name: true } },
+        lines: { include: { product: true } },
+      },
+    });
+
+    res.json(updated);
   } catch (err) {
     next(err);
   }
@@ -208,8 +310,8 @@ router.post('/:id/lines', authenticate, async (req, res, next) => {
 
     const quotation = await prisma.quotation.findUnique({ where: { id: req.params.id } });
     if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
-    if (!['DRAFT', 'UNDER_NEGOTIATION'].includes(quotation.status)) {
-      return res.status(400).json({ error: 'Can only add lines to draft or negotiating quotations' });
+    if (!['DRAFT', 'UNDER_NEGOTIATION', 'NEEDS_REVISION'].includes(quotation.status)) {
+      return res.status(400).json({ error: 'Can only add lines to draft, negotiating, or revision-needed quotations' });
     }
 
     const product = await prisma.product.findUnique({ where: { id: productId } });

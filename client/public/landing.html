@@ -747,162 +747,278 @@
     }
 
     /* -------------------------------------------------------------
-       SECTION 5: FEATURE GRID (THE 6-CARD BENTO GRID - GAPLESS)
+       SECTION 5: FEATURE GRID (CHROMA-STYLE 3-COLUMN BENTO MASTERWORK)
     -------------------------------------------------------------- */
     .features-section {
       padding: 6.5rem 0;
       background-color: var(--bg-primary);
     }
 
-    .bento-grid {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      gap: 1.5rem;
+    .chroma-bento-wrapper {
+      background: #FAF7F2;
+      border: 1.5px solid #0F2C59;
+      border-radius: 20px;
+      padding: 1.25rem;
+      box-shadow: 0 16px 40px rgba(15, 44, 89, 0.08);
+      position: relative;
     }
 
-    .bento-card {
-      background-color: var(--bg-secondary);
-      border: 1px solid var(--accent-tan);
-      border-radius: var(--radius-md);
-      padding: 2.2rem;
-      position: relative;
+    .chroma-bento-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1fr;
+      gap: 1.15rem;
+      align-items: stretch;
+    }
+
+    .chroma-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1.15rem;
+    }
+
+    .chroma-card {
+      background: #FFFFFF;
+      border: 1.5px solid #0F2C59;
+      border-radius: 12px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      transition: var(--transition);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 2px 2px 0px rgba(15, 44, 89, 0.06);
     }
 
-    .bento-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--navy-deep);
+    .chroma-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 4px 4px 0px #0F2C59;
     }
 
-    /* Grid Span Helpers */
-    .bento-span-8 {
-      grid-column: span 8;
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(218, 192, 163, 0.35) 100%);
+    .chroma-card-tall {
+      flex: 1;
+      height: 100%;
     }
 
-    .bento-span-4 {
-      grid-column: span 4;
+    .chroma-card-header {
+      padding: 1.4rem 1.4rem 1.1rem;
+      background: #FFFFFF;
     }
 
-    .bento-span-6 {
-      grid-column: span 6;
+    .chroma-cat {
+      font-family: var(--font-display);
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #0F2C59;
+      margin-bottom: 0.65rem;
     }
 
-    .bento-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      background-color: var(--bg-primary);
-      border: 1px solid var(--accent-tan);
+    .chroma-desc {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #1E293B;
+      font-weight: 400;
+    }
+
+    .chroma-subdesc {
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: #64748B;
+      margin-top: 0.65rem;
+    }
+
+    .chroma-bullets {
+      margin-top: 0.65rem;
       display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.85rem;
+      color: #1E293B;
+      font-weight: 500;
+    }
+
+    .chroma-bullet-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .chroma-bullet-item::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #0F2C59;
+      display: inline-block;
+    }
+
+    .chroma-canvas {
+      border-top: 1px solid rgba(15, 44, 89, 0.12);
+      background: #F8F9FA;
+      padding: 1.25rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      margin-bottom: 1.4rem;
-      color: var(--navy-deep);
-    }
-
-    .bento-icon svg {
-      width: 22px;
-      height: 22px;
-      stroke-width: 1.8;
-    }
-
-    .bento-title {
-      font-size: 1.32rem;
-      font-weight: 700;
-      margin-bottom: 0.6rem;
-      letter-spacing: -0.02em;
-    }
-
-    .bento-desc {
-      font-size: 0.92rem;
-      color: var(--navy-muted);
-      line-height: 1.55;
-    }
-
-    /* Micro-UI Widgets for Bento Cards */
-    .bento-micro-widget {
-      margin-top: 1.6rem;
-      background: var(--bg-primary);
-      border: 1px solid var(--accent-tan);
-      border-radius: var(--radius-sm);
-      padding: 1.1rem;
-    }
-
-    .negotiation-widget {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.2rem;
-    }
-
-    .widget-stat-box {
-      border-right: 1px solid var(--tan-border);
-      padding-right: 1rem;
-    }
-
-    .widget-prob {
-      font-family: var(--font-display);
-      font-size: 2.1rem;
-      font-weight: 700;
-      color: var(--navy-deep);
-      line-height: 1;
-    }
-
-    .sentiment-bar-bg {
-      height: 6px;
-      background: rgba(15, 44, 89, 0.1);
-      border-radius: 4px;
+      position: relative;
       overflow: hidden;
-      margin-top: 0.4rem;
+      min-height: 180px;
     }
 
-    .sentiment-bar-fill {
+    /* Card 1 Specifics: CLI Prompt & Code Window */
+    .chroma-cli-pill {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1.5px solid #0F2C59;
+      border-radius: 6px;
+      padding: 0.55rem 0.75rem;
+      box-shadow: 3px 3px 0px #0F2C59;
+      margin-bottom: 1rem;
+    }
+
+    .chroma-cli-cmd {
+      font-family: 'Space Grotesk', monospace, sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #0F2C59;
+    }
+
+    .chroma-cli-bar-track {
+      height: 9px;
+      border: 1px solid #0F2C59;
+      border-radius: 2px;
+      margin-top: 5px;
+      background: #FAF6F0;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .chroma-cli-bar-fill {
+      width: 76%;
       height: 100%;
-      width: 84%;
-      background: var(--navy-deep);
-      border-radius: 4px;
+      background: repeating-linear-gradient(
+        45deg,
+        #0F2C59 0,
+        #0F2C59 3px,
+        #DAC0A3 3px,
+        #DAC0A3 6px
+      );
     }
 
-    /* Warehouse Split Visual Route Widget */
-    .warehouse-route-box {
+    .chroma-code-frame {
+      width: 100%;
+      background: #FFFFFF;
+      border: 1.5px solid #0F2C59;
+      border-radius: 8px;
+      box-shadow: 4px 4px 0px #0F2C59;
+      padding: 0.85rem;
+      position: relative;
+    }
+
+    .chroma-code-dots {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 0.6rem;
+    }
+
+    .chroma-code-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      border: 1px solid #0F2C59;
+      background: #FAF6F0;
+    }
+
+    .chroma-code-pre {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.76rem;
+      line-height: 1.55;
+      color: #0F2C59;
+      margin: 0;
+      white-space: pre;
+    }
+
+    .chroma-code-comment {
+      color: #8892B0;
+      font-style: italic;
+    }
+
+    .chroma-code-badge {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      background: #0F2C59;
+      color: #F8F0E5;
+      font-family: var(--font-display);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.55rem;
+      border-radius: 4px;
+      box-shadow: 2px 2px 0px #DAC0A3;
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
+      gap: 4px;
     }
 
-    .warehouse-node {
-      background: var(--bg-secondary);
-      border: 1px solid var(--accent-tan);
+    /* Card 4 Specifics: Blueprint Grid & 3D Tactile Chips */
+    .chroma-blueprint-board {
+      width: 100%;
+      height: 160px;
+      background-color: #FAF8F5;
+      background-image: 
+        linear-gradient(to right, rgba(15, 44, 89, 0.12) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(15, 44, 89, 0.12) 1px, transparent 1px);
+      background-size: 16px 16px;
+      border: 1.2px solid rgba(15, 44, 89, 0.2);
       border-radius: 6px;
-      padding: 0.5rem 0.8rem;
-      flex: 1;
+      position: relative;
     }
 
-    .route-arrow {
-      color: var(--navy-muted);
+    .chroma-3d-chip {
+      position: absolute;
+      background: #FFFFFF;
+      border: 1.5px solid #0F2C59;
+      border-radius: 4px;
+      box-shadow: 3px 3px 0px #0F2C59;
+      padding: 0.3rem 0.55rem;
+      font-family: var(--font-display);
+      font-size: 0.76rem;
       font-weight: 700;
-      font-size: 0.9rem;
+      color: #0F2C59;
+      letter-spacing: 0.02em;
+      transition: transform 0.15s ease;
+      cursor: default;
     }
 
-    .sentiment-bar-bg {
-      height: 6px;
-      background: rgba(15, 44, 89, 0.1);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 0.4rem;
+    .chroma-3d-chip:hover {
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0px #0F2C59;
     }
 
-    .sentiment-bar-fill {
-      height: 100%;
-      width: 84%;
-      background: var(--navy-deep);
-      border-radius: 4px;
+    .chroma-3d-chip.stippled {
+      background-image: radial-gradient(#0F2C59 0.75px, transparent 0.75px);
+      background-size: 4px 4px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1023px) {
+      .chroma-bento-grid {
+        grid-template-columns: 1fr;
+      }
+      .chroma-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .chroma-col {
+        grid-template-columns: 1fr;
+      }
+      .chroma-bento-wrapper {
+        padding: 0.75rem;
+      }
     }
 
     /* -------------------------------------------------------------
@@ -1109,10 +1225,10 @@
       width: 950px;
       height: 650px;
       background: radial-gradient(ellipse at center,
-        rgba(248, 240, 229, 0.16) 0%,
-        rgba(234, 219, 200, 0.10) 30%,
-        rgba(218, 192, 163, 0.04) 60%,
-        transparent 100%);
+          rgba(248, 240, 229, 0.16) 0%,
+          rgba(234, 219, 200, 0.10) 30%,
+          rgba(218, 192, 163, 0.04) 60%,
+          transparent 100%);
       filter: blur(90px);
       -webkit-filter: blur(90px);
       pointer-events: none;
@@ -1289,8 +1405,10 @@
       </ul>
 
       <div class="nav-cta-group" style="display: flex; align-items: center; gap: 0.75rem;">
-        <a href="/login" onclick="window.top.location.href='/login'; return false;" class="btn btn-ghost btn-sm" style="padding: 0.55rem 1.15rem;">Log In</a>
-        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="navCtaCreateAccount" class="btn btn-primary btn-sm" style="padding: 0.55rem 1.15rem;">Create an Account</a>
+        <a href="/login" onclick="window.top.location.href='/login'; return false;" class="btn btn-ghost btn-sm"
+          style="padding: 0.55rem 1.15rem;">Log In</a>
+        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="navCtaCreateAccount"
+          class="btn btn-primary btn-sm" style="padding: 0.55rem 1.15rem;">Create an Account</a>
       </div>
     </div>
   </nav>
@@ -1302,17 +1420,18 @@
     <div class="container hero-content">
 
       <h1 class="hero-headline fade-in stagger-1" style="margin-top: 1rem;">
-        Your sales team is bleeding margin.<br />
-        <span class="editorial">Nobody's watching.</span>
+        Your sales team is losing margin<br />
+        <span class="editorial">Nobody's watching</span>
       </h1>
 
       <p class="hero-subheadline fade-in stagger-2">
-        DealFlow360 is the self-governing sales engine that catches bad discounts, splits your warehouses, and predicts
+        DealFlow360 is the sales engine that catches bad discounts, splits your warehouses, and predicts
         if your customer will actually say yes before your rep even hits send.
       </p>
 
       <div class="hero-cta-row fade-in stagger-3">
-        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="heroCtaSeeAction" class="btn btn-primary btn-lg">See it in action</a>
+        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="heroCtaSeeAction"
+          class="btn btn-primary btn-lg">See it in action</a>
         <a href="#how-it-works" class="btn btn-ghost btn-lg">Watch 90s demo</a>
       </div>
 
@@ -1351,7 +1470,7 @@
         </div>
 
         <div class="pain-card fade-in stagger-3">
-          <div class="pain-stat">$0</div>
+          <div class="pain-stat">₹0</div>
           <div class="pain-desc">visibility into whether your customer will actually accept your counter-offer.</div>
           <div class="pain-sub">Negotiations rely on guesswork instead of sentiment-informed predictive ML.</div>
         </div>
@@ -1429,19 +1548,19 @@
                       <td style="font-weight: 600;">Enterprise Server Array</td>
                       <td><span class="tag tag-blue">Hardware (Cap: 15%)</span></td>
                       <td>2</td>
-                      <td>$24,000</td>
+                      <td>₹24,000</td>
                     </tr>
                     <tr>
                       <td style="font-weight: 600;">Managed Deployment Suite</td>
                       <td><span class="tag tag-amber">Services (Cap: 10%)</span></td>
                       <td>1</td>
-                      <td>$8,500</td>
+                      <td>₹8,500</td>
                     </tr>
                     <tr id="upsellLine" style="display: none; background: rgba(74, 222, 128, 0.08);">
                       <td style="font-weight: 600; color: #4ADE80;">+ 24/7 Priority SLA (AI Added)</td>
                       <td><span class="tag tag-green">Recurring (Cap: 12%)</span></td>
                       <td>1</td>
-                      <td>$3,600/yr</td>
+                      <td>₹3,600/yr</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1467,7 +1586,7 @@
                   <div>
                     <div style="font-size: 0.75rem; color: #DAC0A3; text-transform: uppercase; font-weight: 700;">AI
                       Upsell Engine (Lift: 2.8x)</div>
-                    <div style="font-size: 0.85rem; font-weight: 600; margin-top: 2px;">24/7 Priority SLA &bull; +$3,600
+                    <div style="font-size: 0.85rem; font-weight: 600; margin-top: 2px;">24/7 Priority SLA &bull; +₹3,600
                       ARR (+18% Net Margin)</div>
                   </div>
                   <button class="btn btn-sm" id="btnToggleUpsell" onclick="toggleUpsellItem()"
@@ -1509,7 +1628,7 @@
                   <div
                     style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.35rem;">
                     <span>Hybrid Billing Schedule:</span>
-                    <strong style="color: #FFF;">$32,500 One-time + $300/mo</strong>
+                    <strong style="color: #FFF;">₹32,500 One-time + ₹300/mo</strong>
                   </div>
                   <div style="display: flex; justify-content: space-between;">
                     <span>E-Sign Status:</span>
@@ -1628,185 +1747,228 @@
       <div class="section-header fade-in">
         <div class="section-eyebrow">Engineered for Revenue Defense</div>
         <h2 class="section-title">Governed deals. <span class="editorial">Zero margin leak.</span></h2>
-        <p>Six specialized engines work silently behind every quote to protect profit margins and accelerate deal
-          velocity.</p>
-      </div>      <div class="bento-grid">
+        <p>Six specialized engines work silently behind every quote to protect profit margins and accelerate deal velocity.</p>
+      </div>
 
-        <!-- ROW 1 / CARD 1 (Hero - Span 8): Negotiation Acceptance Predictor -->
-        <div class="bento-card bento-span-8 fade-in stagger-1">
-          <div>
-            <div class="bento-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-            </div>
-            <h3 class="bento-title" style="font-size: 1.55rem;">Negotiation acceptance predictor</h3>
-            <p class="bento-desc" style="max-width: 580px;">Our ML model reads the room. Get a live, sentiment-informed %
-              chance your customer accepts before you counter-offer, calibrated against historical close patterns.</p>
-          </div>
+      <!-- MASTER CHROMA-STYLE BENTO GRID -->
+      <div class="chroma-bento-wrapper fade-in">
+        <div class="chroma-bento-grid">
 
-          <div class="bento-micro-widget negotiation-widget">
-            <div class="widget-stat-box">
-              <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--navy-muted);">
-                Predicted Win Probability</div>
-              <div class="widget-prob">92.4%</div>
-              <div style="font-size: 0.8rem; color: var(--navy-deep); font-weight: 600; margin-top: 0.3rem;">Optimal
-                Counter: 11.2%</div>
-            </div>
-            <div>
-              <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--navy-muted);">
-                Client Sentiment & Urgency</div>
-              <div class="sentiment-bar-bg">
-                <div class="sentiment-bar-fill"></div>
+          <!-- COLUMN 1 (TALL CARD): SIMPLE AND POWERFUL -->
+          <div class="chroma-card chroma-card-tall">
+            <div class="chroma-card-header">
+              <div class="chroma-cat">SIMPLE AND POWERFUL</div>
+              <div class="chroma-desc">
+                From quotation to production, prototype, iterate, and deploy your deal governance with DealFlow360.
               </div>
-              <div
-                style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--navy-muted); margin-top: 0.4rem;">
-                <span>Positive (+0.84)</span>
-                <span>High Urgency Signal</span>
+              <div class="chroma-subdesc">
+                Getting started is as easy as running a prediction...
               </div>
             </div>
+
+            <div class="chroma-canvas" style="padding-top: 1.5rem; justify-content: flex-start;">
+              <!-- CLI command bar with stippled progress bar -->
+              <div class="chroma-cli-pill">
+                <div class="chroma-cli-cmd">> dealflow predict --quote Q-1042</div>
+                <div class="chroma-cli-bar-track">
+                  <div class="chroma-cli-bar-fill"></div>
+                </div>
+              </div>
+
+              <!-- Code editor block with hard shadow -->
+              <div class="chroma-code-frame">
+                <div class="chroma-code-dots">
+                  <span class="chroma-code-dot"></span>
+                  <span class="chroma-code-dot"></span>
+                  <span class="chroma-code-dot"></span>
+                </div>
+                <pre class="chroma-code-pre"><code>import dealflow
+
+client = dealflow.Engine()
+
+q = client.create_quote("TechNova")
+
+<span class="chroma-code-comment"># compute counter win probability</span>
+res = q.predict(counter_disc=11.2)
+
+<span class="chroma-code-comment"># win probability: 92.4%</span>
+q.execute(tier="AUTO_PASS")</code></pre>
+
+                <div class="chroma-code-badge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  92.4% PROBABILITY
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- COLUMN 2: FULL FEATURED (Top) & ZERO LEAKAGE (Bottom) -->
+          <div class="chroma-col">
+            <!-- FULL FEATURED CARD -->
+            <div class="chroma-card" style="flex: 1.25;">
+              <div class="chroma-card-header">
+                <div class="chroma-cat">FULL FEATURED</div>
+                <div class="chroma-desc">Everything you need for autonomous fulfillment:</div>
+                <div class="chroma-bullets">
+                  <div class="chroma-bullet-item">Multi-warehouse auto-split</div>
+                  <div class="chroma-bullet-item">Algorithmic freight optimization</div>
+                  <div class="chroma-bullet-item">Predictive sentiment scoring</div>
+                  <div class="chroma-bullet-item">SOC II & SHA-256 audit trail</div>
+                </div>
+              </div>
+
+              <div class="chroma-canvas">
+                <!-- 3-LAYER FLOATING ISOMETRIC SCHEMATIC (SVG) -->
+                <svg viewBox="0 0 260 160" width="100%" height="150" style="max-width: 250px; overflow: visible;">
+                  <!-- Top Layer: Depot Mumbai -->
+                  <g transform="translate(130, 32)">
+                    <path d="M 0,-22 L 86,10 L 0,42 L -86,10 Z" fill="#FFFFFF" stroke="#0F2C59" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="M -43,-6 L 43,26 M -43,26 L 43,-6" stroke="#0F2C59" stroke-width="0.7" stroke-dasharray="2 2" opacity="0.3"/>
+                    <!-- Blue Node -->
+                    <circle cx="-16" cy="4" r="5" fill="#2563EB" stroke="#0F2C59" stroke-width="1.3"/>
+                    <text x="24" y="24" font-family="'Space Grotesk', monospace" font-size="8" font-weight="700" fill="#0F2C59">Depot Mumbai (2u)</text>
+                  </g>
+                  <!-- Connector Spline 1 to 2 -->
+                  <path d="M 114,36 C 114,60 145,55 145,78" fill="none" stroke="#0F2C59" stroke-width="1.6" stroke-dasharray="3 3"/>
+                  <!-- Middle Layer: Split Engine -->
+                  <g transform="translate(130, 78)">
+                    <path d="M 0,-22 L 86,10 L 0,42 L -86,10 Z" fill="#FAF6F0" stroke="#0F2C59" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="M -43,-6 L 43,26 M -43,26 L 43,-6" stroke="#0F2C59" stroke-width="0.7" stroke-dasharray="2 2" opacity="0.3"/>
+                    <!-- Orange Node -->
+                    <circle cx="15" cy="0" r="5" fill="#F97316" stroke="#0F2C59" stroke-width="1.3"/>
+                    <circle cx="-32" cy="14" r="3.5" fill="#0F2C59" opacity="0.4"/>
+                    <text x="-78" y="25" font-family="'Space Grotesk', monospace" font-size="8" font-weight="700" fill="#0F2C59">Auto-Split Engine</text>
+                  </g>
+                  <!-- Connector Spline 2 to 3 -->
+                  <path d="M 145,78 C 145,102 122,100 122,122" fill="none" stroke="#0F2C59" stroke-width="1.6"/>
+                  <!-- Bottom Layer: Delivery Hub -->
+                  <g transform="translate(130, 122)">
+                    <path d="M 0,-22 L 86,10 L 0,42 L -86,10 Z" fill="#FFFFFF" stroke="#0F2C59" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="M -43,-6 L 43,26 M -43,26 L 43,-6" stroke="#0F2C59" stroke-width="0.7" stroke-dasharray="2 2" opacity="0.3"/>
+                    <!-- Dark Node -->
+                    <circle cx="-8" cy="0" r="5" fill="#0F2C59" stroke="#0F2C59" stroke-width="1.3"/>
+                    <circle cx="20" cy="14" r="4" fill="#16A34A" stroke="#0F2C59" stroke-width="1.2"/>
+                    <text x="24" y="2" font-family="'Space Grotesk', monospace" font-size="8" font-weight="700" fill="#0F2C59">Customer Delivery</text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            <!-- ZERO LEAKAGE CARD (Bottom) -->
+            <div class="chroma-card" style="flex: 0.95;">
+              <div class="chroma-card-header">
+                <div class="chroma-cat">ZERO LEAKAGE</div>
+                <div class="chroma-desc">Enforce hard margin floors across every single quote line item.</div>
+              </div>
+
+              <div class="chroma-canvas">
+                <!-- RETRO PERFORATED TICKET (SVG) -->
+                <svg viewBox="0 0 240 100" width="100%" height="95" style="max-width: 220px; overflow: visible;">
+                  <defs>
+                    <pattern id="stippleTicket" width="4" height="4" patternUnits="userSpaceOnUse">
+                      <circle cx="2" cy="2" r="0.85" fill="#0F2C59" opacity="0.35"/>
+                    </pattern>
+                  </defs>
+                  <g transform="rotate(-11, 120, 50)">
+                    <!-- Drop shadow -->
+                    <rect x="34" y="16" width="170" height="64" fill="#0F2C59" rx="3"/>
+                    <!-- Ticket body with serrated left and right edges -->
+                    <path d="M 30,12
+                             L 198,12
+                             L 198,22 L 193,25 L 198,28 L 193,31 L 198,34 L 193,37 L 198,40 L 193,43 L 198,46 L 193,49 L 198,52 L 193,55 L 198,58 L 193,61 L 198,64 L 193,67 L 198,70 L 193,73 L 198,76
+                             L 30,76
+                             L 30,73 L 35,70 L 30,67 L 35,64 L 30,61 L 35,58 L 30,55 L 35,52 L 30,49 L 35,46 L 30,43 L 35,40 L 30,37 L 35,34 L 30,31 L 35,28 L 30,25 L 35,22 Z"
+                          fill="#FAF7F2" stroke="#0F2C59" stroke-width="1.6"/>
+                    <!-- Stipple halftone fill -->
+                    <rect x="38" y="18" width="154" height="52" fill="url(#stippleTicket)"/>
+                    <!-- Dashed ticket divider -->
+                    <line x1="68" y1="12" x2="68" y2="76" stroke="#0F2C59" stroke-width="1.2" stroke-dasharray="3 3"/>
+                    <!-- Typography -->
+                    <text x="52" y="47" font-family="'Space Grotesk', monospace" font-size="7.5" font-weight="700" fill="#0F2C59" transform="rotate(-90, 52, 47)" text-anchor="middle">DEALFLOW</text>
+                    <text x="132" y="42" font-family="'Space Grotesk', monospace" font-size="19" font-weight="800" fill="#0F2C59" letter-spacing="0.04em" text-anchor="middle">₹0.00</text>
+                    <text x="132" y="60" font-family="'Space Grotesk', monospace" font-size="7.5" font-weight="700" fill="#0F2C59" letter-spacing="0.08em" text-anchor="middle">MARGIN LEAKAGE</text>
+                  </g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- COLUMN 3: SPEAKS YOUR LANGUAGE (Top) & INTEGRATED (Bottom) -->
+          <div class="chroma-col">
+            <!-- SPEAKS YOUR LANGUAGE CARD -->
+            <div class="chroma-card" style="flex: 1.1;">
+              <div class="chroma-card-header">
+                <div class="chroma-cat">SPEAKS YOUR LANGUAGE</div>
+                <div class="chroma-desc">Category guardrails for Hardware, SaaS, Cloud, and Professional Services.</div>
+              </div>
+
+              <div class="chroma-canvas">
+                <!-- TECHNICAL BLUEPRINT GRID WITH 3D TACTILE CHIPS -->
+                <div class="chroma-blueprint-board">
+                  <div class="chroma-3d-chip" style="top: 12px; left: 16px;">HARDWARE</div>
+                  <div class="chroma-3d-chip stippled" style="top: 8px; right: 16px; background-color: #FAF6F0;">SERVICES</div>
+                  <div class="chroma-3d-chip" style="top: 56px; left: 12px;">SAAS</div>
+                  <div class="chroma-3d-chip" style="top: 52px; left: 96px; background-color: #FAF6F0;">TIER 1</div>
+                  <div class="chroma-3d-chip stippled" style="bottom: 12px; left: 24px;">VP FINANCE</div>
+                  <div class="chroma-3d-chip" style="bottom: 14px; right: 24px; font-size: 0.95rem; padding: 0.2rem 0.55rem;">+</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- INTEGRATED CARD -->
+            <div class="chroma-card" style="flex: 1.1;">
+              <div class="chroma-card-header">
+                <div class="chroma-cat">INTEGRATED</div>
+                <div class="chroma-desc">Redpanda streaming, AI association upsells, and Odoo Sign automated contracts built in.</div>
+              </div>
+
+              <div class="chroma-canvas">
+                <!-- INTERLOCKING JIGSAW PUZZLE PIECES (SVG) -->
+                <svg viewBox="0 0 210 130" width="100%" height="120" style="max-width: 200px; overflow: visible;">
+                  <defs>
+                    <pattern id="puzzleDots" width="3" height="3" patternUnits="userSpaceOnUse">
+                      <circle cx="1.5" cy="1.5" r="0.65" fill="#0F2C59" opacity="0.35"/>
+                    </pattern>
+                    <pattern id="puzzleLines" width="6" height="6" patternUnits="userSpaceOnUse">
+                      <path d="M0 6L6 0" stroke="#0F2C59" stroke-width="0.8" opacity="0.3"/>
+                    </pattern>
+                  </defs>
+                  <g transform="translate(10, 5)">
+                    <!-- Floating Piece 1 (Top Right) -->
+                    <g transform="translate(80, 8)">
+                      <!-- Shadow -->
+                      <path d="M 0,0 L 42,0 C 42,10 52,10 52,20 C 52,30 42,30 42,40 L 0,40 C 10,40 10,30 20,30 C 30,30 30,20 20,20 C 10,20 10,10 0,0 Z"
+                            fill="#0F2C59" transform="translate(3, 3)"/>
+                      <!-- Body -->
+                      <path d="M 0,0 L 42,0 C 42,10 52,10 52,20 C 52,30 42,30 42,40 L 0,40 C 10,40 10,30 20,30 C 30,30 30,20 20,20 C 10,20 10,10 0,0 Z"
+                            fill="#FAF6F0" stroke="#0F2C59" stroke-width="1.6"/>
+                      <rect x="5" y="5" width="32" height="30" fill="url(#puzzleDots)"/>
+                      <text x="21" y="24" font-family="'Space Grotesk', monospace" font-size="7" font-weight="700" fill="#0F2C59" text-anchor="middle">REDPANDA</text>
+                    </g>
+                    <!-- Interlocked Piece 2 (Bottom Left) -->
+                    <g transform="translate(20, 48)">
+                      <path d="M 0,0 L 42,0 C 42,10 52,10 52,20 C 52,30 42,30 42,40 L 0,40 L 0,0 Z"
+                            fill="#0F2C59" transform="translate(3, 3)"/>
+                      <path d="M 0,0 L 42,0 C 42,10 52,10 52,20 C 52,30 42,30 42,40 L 0,40 L 0,0 Z"
+                            fill="#FFFFFF" stroke="#0F2C59" stroke-width="1.6"/>
+                      <rect x="4" y="4" width="34" height="32" fill="url(#puzzleLines)"/>
+                      <text x="21" y="23" font-family="'Space Grotesk', monospace" font-size="7" font-weight="700" fill="#0F2C59" text-anchor="middle">ODOO SIGN</text>
+                    </g>
+                    <!-- Interlocked Piece 3 (Bottom Right) -->
+                    <g transform="translate(62, 48)">
+                      <path d="M 0,0 C 0,10 10,10 10,20 C 10,30 0,30 0,40 L 44,40 L 44,0 L 0,0 Z"
+                            fill="#0F2C59" transform="translate(3, 3)"/>
+                      <path d="M 0,0 C 0,10 10,10 10,20 C 10,30 0,30 0,40 L 44,40 L 44,0 L 0,0 Z"
+                            fill="#FAF0E6" stroke="#0F2C59" stroke-width="1.6"/>
+                      <text x="23" y="23" font-family="'Space Grotesk', monospace" font-size="7.5" font-weight="700" fill="#0F2C59" text-anchor="middle">DEALFLOW</text>
+                    </g>
+                  </g>
+                </svg>
+              </div>
+            </div>
+          </div>
+
         </div>
-
-        <!-- ROW 1 / CARD 2 (Span 4): Blended Risk Scoring -->
-        <div class="bento-card bento-span-4 fade-in stagger-2">
-          <div>
-            <div class="bento-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <h3 class="bento-title">Blended risk scoring</h3>
-            <p class="bento-desc">Catches discount abuse across individual line items and product categories, not just
-              the top-line total.</p>
-          </div>
-
-          <div class="bento-micro-widget" style="display: flex; flex-direction: column; gap: 0.45rem;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.78rem;">
-              <span>Hardware (15% Cap):</span>
-              <strong style="color: #16A34A;">12% &bull; Safe</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 0.78rem;">
-              <span>Services (10% Cap):</span>
-              <strong style="color: #DC2626;">18% &bull; Flagged (+8%)</strong>
-            </div>
-            <div style="margin-top: 0.2rem; font-size: 0.72rem; color: var(--navy-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em;">
-              Multi-Tier Routing Triggered
-            </div>
-          </div>
-        </div>
-
-        <!-- ROW 2 / CARD 3 (Span 4): AI Upsell Engine -->
-        <div class="bento-card bento-span-4 fade-in stagger-1">
-          <div>
-            <div class="bento-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
-                <polyline points="17 6 23 6 23 12" />
-              </svg>
-            </div>
-            <h3 class="bento-title">AI upsell engine</h3>
-            <p class="bento-desc">Surfaces the exact add-on your customer is statistically likely to buy using
-              association-rule lift mining.</p>
-          </div>
-
-          <div class="bento-micro-widget" style="display: flex; align-items: center; justify-content: space-between;">
-            <div>
-              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-muted); font-weight: 700;">Lift Score: 2.8x</div>
-              <div style="font-weight: 700; font-size: 0.85rem; color: var(--navy-deep);">Priority SLA Bundle</div>
-            </div>
-            <div style="background: var(--bg-secondary); border: 1px solid var(--accent-tan); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.78rem; font-weight: 700; color: #16A34A;">
-              +18% Margin
-            </div>
-          </div>
-        </div>
-
-        <!-- ROW 2 / CARD 4 (Hero - Span 8): Multi-Warehouse Auto-Split -->
-        <div class="bento-card bento-span-8 fade-in stagger-2">
-          <div>
-            <div class="bento-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <rect x="1" y="3" width="15" height="13" />
-                <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
-                <circle cx="5.5" cy="18.5" r="2.5" />
-                <circle cx="18.5" cy="18.5" r="2.5" />
-              </svg>
-            </div>
-            <h3 class="bento-title" style="font-size: 1.55rem;">Multi-warehouse auto-split</h3>
-            <p class="bento-desc" style="max-width: 580px;">Real-time stock logic calculates optimal fulfillment routes with freight-cost minimization and automated backorder consolidation.</p>
-          </div>
-
-          <div class="bento-micro-widget warehouse-route-box">
-            <div class="warehouse-node">
-              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-muted); font-weight: 700;">Origin: Main Depot</div>
-              <div style="font-size: 0.88rem; font-weight: 700; color: var(--navy-deep); margin-top: 2px;">2 Units &bull; Dispatched</div>
-            </div>
-            <div class="route-arrow">+</div>
-            <div class="warehouse-node">
-              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-muted); font-weight: 700;">Origin: East Depot</div>
-              <div style="font-size: 0.88rem; font-weight: 700; color: var(--navy-deep); margin-top: 2px;">1 Unit &bull; Consolidated</div>
-            </div>
-            <div class="warehouse-node" style="background: var(--bg-primary); border-color: var(--navy-deep);">
-              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-deep); font-weight: 700;">Optimization</div>
-              <div style="font-size: 0.88rem; font-weight: 700; color: #16A34A; margin-top: 2px;">1.8x Lower Freight</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ROW 3 / CARD 5 (Span 6): Live Deal Health Radar -->
-        <div class="bento-card bento-span-6 fade-in stagger-1">
-          <div>
-            <div class="bento-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="2" />
-                <path
-                  d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
-              </svg>
-            </div>
-            <h3 class="bento-title">Live deal health radar</h3>
-            <p class="bento-desc">See stalled quotes and delivery promise slippage the second deals go quiet via
-              Redpanda streaming.</p>
-          </div>
-
-          <div class="bento-micro-widget" style="display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <span class="pulse-dot"></span>
-              <span style="font-size: 0.82rem; font-weight: 600; color: var(--navy-deep);">Telemetry Active</span>
-            </div>
-            <span style="font-size: 0.78rem; font-weight: 600; color: #DC2626; background: rgba(220,38,38,0.1); padding: 0.2rem 0.6rem; border-radius: 4px;">
-              Stalled Deal Flagged (4.2d)
-            </span>
-          </div>
-        </div>
-
-        <!-- ROW 3 / CARD 6 (Span 6): One-Click E-Signature -->
-        <div class="bento-card bento-span-6 fade-in stagger-2">
-          <div>
-            <div class="bento-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
-              </svg>
-            </div>
-            <h3 class="bento-title">One-click e-signature</h3>
-            <p class="bento-desc">Confirmed terms transition immediately into signed, auditable contracts via integrated
-              Odoo Sign pipelines.</p>
-          </div>
-
-          <div class="bento-micro-widget" style="display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 0.4rem;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              <span style="font-size: 0.82rem; font-weight: 600; color: var(--navy-deep);">Odoo Sign API Connected</span>
-            </div>
-            <span style="font-size: 0.75rem; font-family: monospace; color: var(--navy-muted);">SHA-256 Verified</span>
-          </div>
-        </div>
-
       </div>
 
     </div>
@@ -1951,7 +2113,9 @@
       </p>
 
       <div style="display: flex; justify-content: center; align-items: center; margin-top: 1rem;">
-        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="bottomCtaCreateAccount" class="btn btn-light btn-lg" style="font-size: 1.1rem; padding: 1.05rem 2.6rem; font-weight: 700; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
+        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="bottomCtaCreateAccount"
+          class="btn btn-light btn-lg"
+          style="font-size: 1.1rem; padding: 1.05rem 2.6rem; font-weight: 700; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
           Create account now!
         </a>
       </div>

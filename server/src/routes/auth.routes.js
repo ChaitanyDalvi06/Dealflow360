@@ -58,14 +58,30 @@ router.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    let customerRecord = null;
+    if (user.role === 'CUSTOMER') {
+      customerRecord = await prisma.customer.findUnique({ where: { email } });
+    }
+
+    const tokenPayload = {
+      id: customerRecord ? customerRecord.id : user.id,
+      userId: user.id,
+      customerId: customerRecord ? customerRecord.id : undefined,
+      email: user.email,
+      role: user.role,
+      type: user.role === 'CUSTOMER' ? 'customer' : 'internal',
+      tier: customerRecord?.tier || 'GOLD',
+    };
+
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, type: 'internal' },
+      tokenPayload,
       config.jwt.secret,
       { expiresIn: config.jwt.expiresIn }
     );
 
     res.json({
       user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      customer: customerRecord ? { id: customerRecord.id, name: customerRecord.name, email: customerRecord.email, tier: customerRecord.tier, company: customerRecord.company } : undefined,
       token,
     });
   } catch (err) {

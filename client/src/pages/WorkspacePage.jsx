@@ -4,8 +4,11 @@ import api from '../utils/api';
 import { formatCurrency, formatPercent, getStatusBadgeClass, getRiskBadgeClass } from '../utils/formatters';
 import { 
   Plus, Trash2, ShieldAlert, Sparkles, CheckCircle, Clock, 
-  Send, ExternalLink, RefreshCw, AlertTriangle, Box, Search, Layers, UserCheck
+  Send, ExternalLink, RefreshCw, AlertTriangle, Box, Search, Layers, UserCheck,
+  FileText, Hand, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import RiskBar from '../components/RiskBar';
+import ChatPanel from '../components/ChatPanel';
 
 export default function WorkspacePage() {
   const [searchParams] = useSearchParams();
@@ -31,6 +34,17 @@ export default function WorkspacePage() {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [successModal, setSuccessModal] = useState(null);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(true);
+
+  // Requirements state (Feature 4)
+  const [unassignedReqs, setUnassignedReqs] = useState([]);
+  const [myReqs, setMyReqs] = useState([]);
+  const [reqTab, setReqTab] = useState('unassigned');
+  const [claimingId, setClaimingId] = useState(null);
+  const [activeRequirement, setActiveRequirement] = useState(null);
+
+  // Discount limits cache (Feature 4 - fetched ONCE)
+  const [discountLimits, setDiscountLimits] = useState(null);
 
   // Load initial data
   useEffect(() => {
@@ -73,6 +87,70 @@ export default function WorkspacePage() {
     };
     fetchData();
   }, [quoteIdParam]);
+
+  // Fetch discount limits ONCE on mount (Feature 4 — cached)
+  useEffect(() => {
+    api.get('/config/discount-limits')
+      .then(res => setDiscountLimits(res.data))
+      .catch(err => console.error('Failed to load discount limits:', err));
+  }, []);
+
+  // Fetch requirements (Feature 4)
+  const fetchRequirements = useCallback(async () => {
+    try {
+      const [unassignedRes, mineRes] = await Promise.all([
+        api.get('/reps/requirements/unassigned'),
+        api.get('/reps/requirements/mine'),
+      ]);
+      setUnassignedReqs(unassignedRes.data);
+      setMyReqs(mineRes.data);
+    } catch (err) {
+      console.error('Failed to load requirements:', err);
+    }
+  }, []);
+
+  useEffect(() => { fetchRequirements(); }, [fetchRequirements]);
+
+  // Claim a requirement
+  const handleClaim = async (reqId) => {
+    try {
+      setClaimingId(reqId);
+      await api.post(`/reps/requirements/${reqId}/claim`);
+      setFeedback({ type: 'success', message: 'Requirement claimed!' });
+      fetchRequirements();
+    } catch (err) {
+      setFeedback({ type: 'danger', message: err.response?.data?.error || 'Failed to claim' });
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  // Start building quote from a requirement
+  const handleBuildQuote = (req) => {
+    setActiveRequirement(req);
+    setSelectedCustomerId(req.customerId);
+    setCurrentQuote(null);
+    // Pre-populate lines from desiredItems if possible
+    const items = Array.isArray(req.desiredItems) ? req.desiredItems : [];
+    const newLines = items.map(item => {
+      const prod = products.find(p => p.id === item.productId);
+      if (!prod) return null;
+      return {
+        productId: prod.id,
+        name: prod.name,
+        sku: prod.sku,
+        category: prod.category,
+        billingType: prod.billingType,
+        unitPrice: Number(prod.basePrice),
+        quantity: item.quantity || 1,
+        discountPct: 0,
+        total: Number(prod.basePrice) * (item.quantity || 1),
+        costPrice: Number(prod.costPrice || 0),
+      };
+    }).filter(Boolean);
+    if (newLines.length > 0) setLines(newLines);
+    setFeedback({ type: 'success', message: `Building quote for "${req.title}". Lines pre-populated from requirement.` });
+  };
 
   // Recalculate Risk & Margins whenever lines or customer change
   const triggerAssessment = useCallback(async () => {
@@ -200,35 +278,47 @@ export default function WorkspacePage() {
 
   // Submit for Approval / Finalize
   const handleSubmitApproval = async () => {
-    if (!selectedCustomerId || lines.length === 0) return;
+    if (!selectedCustomerId || lines.length === 0) {
+      setFeedback({ type: 'danger', message: 'Please add at least one product before submitting.' });
+      return;
+    }
     try {
       setSaving(true);
+      const payload = {
+        customerId: selectedCustomerId,
+        requirementId: activeRequirement?.id,
+        lines: lines.map(l => ({
+          productId: l.productId,
+          quantity: Number(l.quantity),
+          unitPrice: Number(l.unitPrice),
+          discountPct: Number(l.discountPct)
+        }))
+      };
+
       let quoteId = currentQuote?.id;
-      
-      // Save first if not saved
-      if (!quoteId) {
-        const createRes = await api.post('/quotations', {
-          customerId: selectedCustomerId,
-          lines: lines.map(l => ({
-            productId: l.productId,
-            quantity: l.quantity,
-            unitPrice: l.unitPrice,
-            discountPct: l.discountPct
-          }))
-        });
+      let quoteObj = currentQuote;
+
+      // Always save or update lines first to guarantee DB has items
+      if (quoteId) {
+        const updateRes = await api.put(`/quotations/${quoteId}`, payload);
+        quoteObj = updateRes.data;
+        setCurrentQuote(quoteObj);
+      } else {
+        const createRes = await api.post('/quotations', payload);
         quoteId = createRes.data.id;
-        setCurrentQuote(createRes.data);
+        quoteObj = createRes.data;
+        setCurrentQuote(quoteObj);
       }
 
       // Trigger submission
       const res = await api.post(`/quotations/${quoteId}/submit`);
-      const updated = res.data;
-      setCurrentQuote(updated);
+      const submissionResult = res.data;
 
       setSuccessModal({
-        quote: updated,
-        action: updated.status === 'APPROVED' ? 'AUTO_APPROVED' : 'PENDING_APPROVAL'
+        quote: { ...quoteObj, ...submissionResult },
+        action: submissionResult.approved || submissionResult.status === 'APPROVED' ? 'AUTO_APPROVED' : 'PENDING_APPROVAL'
       });
+      setFeedback({ type: 'success', message: 'Quotation submitted successfully!' });
     } catch (err) {
       setFeedback({ type: 'danger', message: 'Submission failed: ' + (err.response?.data?.error || err.message) });
     } finally {
@@ -285,6 +375,14 @@ export default function WorkspacePage() {
         )}
 
         <div className="workspace-header-actions">
+          <button
+            className={`btn ${isCatalogOpen ? 'btn-secondary' : 'btn-primary'}`}
+            onClick={() => setIsCatalogOpen(!isCatalogOpen)}
+            title={isCatalogOpen ? 'Collapse Catalog for wider quote view' : 'Open Product Catalog'}
+          >
+            <Box size={15} />
+            {isCatalogOpen ? 'Hide Catalog' : 'Add Products'}
+          </button>
           <button 
             className="btn btn-secondary"
             onClick={() => {
@@ -304,13 +402,83 @@ export default function WorkspacePage() {
         </div>
       )}
 
+      {/* Requirements Panel (Feature 4) */}
+      <div className="req-panel">
+        <div className="req-panel__header">
+          <h3><FileText size={16} /> Customer Requirements</h3>
+        </div>
+        <div className="req-panel__tabs">
+          <button
+            className={`req-panel__tab ${reqTab === 'unassigned' ? 'active' : ''}`}
+            onClick={() => setReqTab('unassigned')}
+          >
+            Unassigned ({unassignedReqs.length})
+          </button>
+          <button
+            className={`req-panel__tab ${reqTab === 'mine' ? 'active' : ''}`}
+            onClick={() => setReqTab('mine')}
+          >
+            My Assigned ({myReqs.length})
+          </button>
+        </div>
+        <div className="req-panel__list">
+          {reqTab === 'unassigned' && unassignedReqs.length === 0 && (
+            <div className="req-panel__empty">No unassigned requirements</div>
+          )}
+          {reqTab === 'mine' && myReqs.length === 0 && (
+            <div className="req-panel__empty">No assigned requirements</div>
+          )}
+          {(reqTab === 'unassigned' ? unassignedReqs : myReqs).map(req => {
+            const items = Array.isArray(req.desiredItems) ? req.desiredItems : [];
+            return (
+              <div key={req.id} className="req-panel__item">
+                <div className="req-panel__item-info">
+                  <div className="req-panel__item-title">{req.title}</div>
+                  <div className="req-panel__item-meta">
+                    <span>{req.customer?.name}</span>
+                    <span>{req.customer?.tier}</span>
+                    <span>{items.length} items</span>
+                  </div>
+                </div>
+                {reqTab === 'unassigned' ? (
+                  <button
+                    className="req-panel__claim-btn"
+                    onClick={() => handleClaim(req.id)}
+                    disabled={claimingId === req.id}
+                  >
+                    <Hand size={12} /> {claimingId === req.id ? '...' : 'Claim'}
+                  </button>
+                ) : (
+                  <button
+                    className="req-panel__claim-btn"
+                    onClick={() => handleBuildQuote(req)}
+                  >
+                    Build Quote
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* 3-Column Workspace Grid */}
-      <div className="workspace-grid">
+      <div className={`workspace-grid ${!isCatalogOpen ? 'catalog-collapsed' : ''}`}>
         {/* Left Column: Product Catalog */}
-        <div className="workspace-column catalog-column card">
-          <div className="catalog-header">
-            <h3><Box size={18} /> Product Catalog</h3>
-            <div className="search-box">
+        {isCatalogOpen && (
+          <div className="workspace-column catalog-column card">
+            <div className="catalog-header">
+              <div className="catalog-header-title-bar">
+                <h3><Box size={18} /> Product Catalog</h3>
+                <button 
+                  className="catalog-collapse-btn" 
+                  onClick={() => setIsCatalogOpen(false)}
+                  title="Collapse Catalog for full workspace"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+              </div>
+              <div className="search-box">
               <Search size={16} className="search-icon" />
               <input
                 type="text"
@@ -363,6 +531,7 @@ export default function WorkspacePage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Center Column: Quotation Line Items */}
         <div className="workspace-column lines-column card">
@@ -370,6 +539,15 @@ export default function WorkspacePage() {
             <div className="lines-title">
               <h3><Layers size={18} /> Quotation Line Items</h3>
               <span className="item-count-badge">{lines.length} items</span>
+              {!isCatalogOpen && (
+                <button
+                  className="btn btn-sm btn-outline-primary"
+                  onClick={() => setIsCatalogOpen(true)}
+                  style={{ marginLeft: '10px' }}
+                >
+                  <Plus size={13} /> Open Catalog
+                </button>
+              )}
             </div>
             {calculating && <span className="calculating-indicator"><RefreshCw size={14} className="spin" /> Calculating risk...</span>}
           </div>
@@ -378,52 +556,76 @@ export default function WorkspacePage() {
             <div className="empty-state">
               <Box size={44} className="empty-icon" />
               <h4>No products in quotation</h4>
-              <p>Select products from the catalog on the left to start building your quote.</p>
+              <p>Select products from the catalog to start building your quote.</p>
+              {!isCatalogOpen && (
+                <button className="btn btn-primary" onClick={() => setIsCatalogOpen(true)} style={{ marginTop: '12px' }}>
+                  <Plus size={16} /> Open Product Catalog
+                </button>
+              )}
             </div>
           ) : (
             <div className="table-responsive">
               <table className="table quotation-table">
                 <thead>
                   <tr>
-                    <th>Item</th>
-                    <th style={{ width: '90px' }}>Unit Price</th>
-                    <th style={{ width: '80px' }}>Qty</th>
-                    <th style={{ width: '100px' }}>Disc %</th>
-                    <th style={{ width: '110px' }}>Subtotal</th>
-                    <th style={{ width: '40px' }}></th>
+                    <th className="th-item">Item & Risk Limit</th>
+                    <th className="th-price" style={{ width: '135px' }}>Unit Price</th>
+                    <th className="th-qty" style={{ width: '80px', textAlign: 'center' }}>Qty</th>
+                    <th className="th-disc" style={{ width: '115px' }}>Disc %</th>
+                    <th className="th-total" style={{ width: '135px', textAlign: 'right' }}>Subtotal</th>
+                    <th className="th-action" style={{ width: '40px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {lines.map((line, idx) => {
                     const isOverLimit = line.discountPct > (selectedCustomer?.maxDiscountLimit || 15);
+                    const catLimit = discountLimits?.categoryLimits?.find(cl => cl.category === line.category);
+                    const catLimitPct = catLimit?.maxDiscountPct || 10;
+                    const finThreshold = discountLimits?.approvalConfig?.financeThreshold || 5;
                     return (
                       <tr key={idx} className={isOverLimit ? 'warning-row' : ''}>
-                        <td>
-                          <div className="line-item-title">{line.name}</div>
+                        <td className="td-item">
+                          <div className="line-item-header">
+                            <span className="line-item-title">{line.name}</span>
+                            <span className="cat-tag-pill">{line.category}</span>
+                          </div>
                           <div className="line-item-sub">
                             <span className="sku-tag">{line.sku}</span>
                             <span className="badge badge-sm">{line.billingType}</span>
                           </div>
+                          {discountLimits && (
+                            <div className="line-item-risk-wrap">
+                              <RiskBar
+                                discountPct={line.discountPct}
+                                categoryLimit={catLimitPct}
+                                financeThreshold={finThreshold}
+                                label=""
+                              />
+                            </div>
+                          )}
                         </td>
-                        <td>
+                        <td className="td-price">
+                          <div className="table-input-currency">
+                            <span className="currency-prefix">₹</span>
+                            <input
+                              type="number"
+                              className="form-control form-control-sm"
+                              value={line.unitPrice}
+                              onChange={(e) => handleLineChange(idx, 'unitPrice', e.target.value)}
+                            />
+                          </div>
+                        </td>
+                        <td className="td-qty text-center">
                           <input
                             type="number"
-                            className="form-control form-control-sm"
-                            value={line.unitPrice}
-                            onChange={(e) => handleLineChange(idx, 'unitPrice', e.target.value)}
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            className="form-control form-control-sm"
+                            className="form-control form-control-sm table-qty-input"
                             min="1"
                             value={line.quantity}
                             onChange={(e) => handleLineChange(idx, 'quantity', e.target.value)}
                           />
                         </td>
-                        <td>
-                          <div className="discount-input-wrapper">
+                        <td className="td-disc">
+                          <div className="table-input-percent">
                             <input
                               type="number"
                               className={`form-control form-control-sm ${isOverLimit ? 'is-invalid' : ''}`}
@@ -433,6 +635,7 @@ export default function WorkspacePage() {
                               value={line.discountPct}
                               onChange={(e) => handleLineChange(idx, 'discountPct', e.target.value)}
                             />
+                            <span className="percent-suffix">%</span>
                             {isOverLimit && (
                               <span title={`Exceeds ${selectedCustomer?.tier} tier limit!`} className="discount-warn-icon">
                                 <AlertTriangle size={14} color="#d9534f" />
@@ -440,10 +643,10 @@ export default function WorkspacePage() {
                             )}
                           </div>
                         </td>
-                        <td className="line-total-cell font-mono">
+                        <td className="line-total-cell font-mono text-right">
                           {formatCurrency(line.total)}
                         </td>
-                        <td>
+                        <td className="td-action text-center">
                           <button
                             className="btn-icon-trash"
                             onClick={() => handleRemoveLine(idx)}
@@ -457,6 +660,30 @@ export default function WorkspacePage() {
                   })}
                 </tbody>
               </table>
+              {/* Blended Risk Bar */}
+              {discountLimits && lines.length > 0 && (() => {
+                let totalWeightedOverage = 0;
+                let totalLineValue = 0;
+                const finThreshold = discountLimits?.approvalConfig?.financeThreshold || 5;
+                for (const line of lines) {
+                  const catLimit = discountLimits.categoryLimits?.find(cl => cl.category === line.category);
+                  const catLimitPct = catLimit?.maxDiscountPct || 10;
+                  const overage = Math.max(0, line.discountPct - catLimitPct);
+                  const lineValue = line.unitPrice * line.quantity;
+                  totalWeightedOverage += overage * lineValue;
+                  totalLineValue += lineValue;
+                }
+                const blendedScore = totalLineValue > 0 ? Math.round((totalWeightedOverage / totalLineValue) * 100) / 100 : 0;
+                return (
+                  <RiskBar
+                    discountPct={blendedScore}
+                    categoryLimit={finThreshold}
+                    financeThreshold={finThreshold}
+                    label="Blended Risk Score"
+                    isBlended
+                  />
+                );
+              })()}
             </div>
           )}
         </div>
@@ -596,6 +823,17 @@ export default function WorkspacePage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Chat Panel (Feature 3) — tied to active requirement */}
+          {activeRequirement && (
+            <ChatPanel
+              requirementId={activeRequirement.id}
+              token={localStorage.getItem('df360_token')}
+              currentUserId={JSON.parse(localStorage.getItem('df360_user') || '{}').id}
+              currentUserType="internal"
+              compact
+            />
           )}
         </div>
       </div>

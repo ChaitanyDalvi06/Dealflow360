@@ -60,12 +60,15 @@ export async function getRequiredApprovalLevel(blendedScore) {
   const config = await prisma.approvalConfig.findFirst();
   if (!config) return 'NONE';
 
-  const managerThreshold = Number(config.managerThreshold);
   const financeThreshold = Number(config.financeThreshold);
 
-  if (blendedScore > financeThreshold) return 'FINANCE'; // Manager + Finance
-  if (blendedScore > managerThreshold) return 'MANAGER'; // Manager only
-  return 'NONE';
+  // Exact PS decision tree:
+  // blendedScore == 0 → auto-approve (no line exceeds its category limit)
+  // blendedScore > 0 && < financeThreshold → MANAGER only
+  // blendedScore >= financeThreshold → MANAGER first, then FINANCE
+  if (blendedScore === 0) return 'NONE';
+  if (blendedScore >= financeThreshold) return 'FINANCE';
+  return 'MANAGER';
 }
 
 /**

@@ -1,6 +1,7 @@
 import prisma from '../config/db.js';
 import { createAuditLog } from '../middleware/audit.js';
 import { computeBlendedRiskScore, getRequiredApprovalLevel } from './discount.service.js';
+import { notifyRep } from '../websocket/chat.ws.js';
 
 /**
  * Routes a quotation through the approval chain based on its blended risk score.
@@ -108,11 +109,27 @@ export async function processApproval(quotationId, approverId, approverRole, act
   });
 
   if (action === 'REJECTED') {
+    // Set status to NEEDS_REVISION (not REJECTED) — rep can rework and resubmit
     await prisma.quotation.update({
       where: { id: quotationId },
-      data: { status: 'REJECTED' },
+      data: { status: 'NEEDS_REVISION' },
     });
-    return { status: 'REJECTED' };
+
+    // Notify the assigned rep via Socket.io
+    const quotation = await prisma.quotation.findUnique({
+      where: { id: quotationId },
+      select: { repId: true },
+    });
+    if (quotation?.repId) {
+      notifyRep(quotation.repId, {
+        type: 'QUOTATION_NEEDS_REVISION',
+        quotationId,
+        reason,
+        message: `Quotation needs revision: ${reason}`,
+      });
+    }
+
+    return { status: 'NEEDS_REVISION' };
   }
 
   if (action === 'RETURNED') {

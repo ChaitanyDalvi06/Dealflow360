@@ -39,12 +39,26 @@ const portalApi = axios.create({
 });
 
 portalApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem('df360_portal_token');
+  const token = localStorage.getItem('df360_portal_token') || localStorage.getItem('df360_token') || localStorage.getItem('df_portal_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+portalApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('df360_portal_token');
+      localStorage.removeItem('df360_portal_customer');
+      if (!window.location.pathname.includes('/portal/login') && !window.location.pathname.includes('/login')) {
+        window.location.href = '/portal/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export { api, portalApi };
 export default api;
