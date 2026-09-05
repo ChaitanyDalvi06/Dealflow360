@@ -151,48 +151,10 @@ export async function processApproval(quotationId, approverId, approverRole, act
     return { status: 'RETURNED' };
   }
 
-  // APPROVED — Handle sequential approval workflow (Sales Manager -> Finance Officer)
+  // APPROVED — Manager is the sole gatekeeper. Manager approval = fully approved.
   if (action === 'APPROVED') {
-    // If approved by SALES_MANAGER, automatically escalate to FINANCE for sign-off
-    if (approverRole === 'SALES_MANAGER') {
-      let financeStep = await prisma.approvalStep.findFirst({
-        where: { quotationId, approverRole: 'FINANCE' },
-      });
-
-      if (!financeStep) {
-        financeStep = await prisma.approvalStep.create({
-          data: {
-            quotationId,
-            approverRole: 'FINANCE',
-            status: 'PENDING',
-          },
-        });
-      } else {
-        await prisma.approvalStep.update({
-          where: { id: financeStep.id },
-          data: { status: 'PENDING' },
-        });
-      }
-
-      await prisma.quotation.update({
-        where: { id: quotationId },
-        data: { status: 'PENDING_FINANCE' },
-      });
-
-      await createAuditLog({
-        entityType: 'Quotation',
-        entityId: quotationId,
-        actorId: approverId,
-        action: 'APPROVAL_ESCALATED_FINANCE',
-        reason: `Sales Manager approved ("${reason || 'Approved'}"). Escalated to Finance for financial authorization.`,
-        metadata: { approverRole, nextApprover: 'FINANCE' },
-      });
-
-      return { status: 'PENDING_FINANCE', nextApprover: 'FINANCE' };
-    }
-
-    // If approved by FINANCE or ADMIN, fully approve the quotation
-    if (approverRole === 'FINANCE' || approverRole === 'ADMIN') {
+    // Sales Manager or Admin approval fully approves the quotation
+    if (approverRole === 'SALES_MANAGER' || approverRole === 'ADMIN') {
       await prisma.quotation.update({
         where: { id: quotationId },
         data: { status: 'APPROVED' },
@@ -203,7 +165,7 @@ export async function processApproval(quotationId, approverId, approverRole, act
         entityId: quotationId,
         actorId: approverId,
         action: 'APPROVAL_FULLY_APPROVED',
-        reason: `${approverRole === 'FINANCE' ? 'Finance' : 'Admin'} approved ("${reason || 'Approved'}"). Quotation is fully approved.`,
+        reason: `${approverRole === 'SALES_MANAGER' ? 'Sales Manager' : 'Admin'} approved ("${reason || 'Approved'}"). Quotation is fully approved and ready for invoicing.`,
         metadata: { approverRole },
       });
 
@@ -229,15 +191,7 @@ export async function processApproval(quotationId, approverId, approverRole, act
       return { status: 'APPROVED' };
     }
 
-    const nextStep = remainingSteps[0];
-    const newStatus = nextStep.approverRole === 'FINANCE' ? 'PENDING_FINANCE' : 'PENDING_MANAGER';
-
-    await prisma.quotation.update({
-      where: { id: quotationId },
-      data: { status: newStatus },
-    });
-
-    return { status: newStatus, nextApprover: nextStep.approverRole };
+    return { status: 'PENDING_MANAGER', nextApprover: remainingSteps[0].approverRole };
   }
 }
 

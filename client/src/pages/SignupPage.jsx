@@ -69,75 +69,25 @@ export default function SignupPage() {
 
   return (
     <div className="signup-page-root">
-      {/* Top Navigation */}
-      <header className="signup-nav">
-        <Link to="/#hero" className="logo">
-          DealFlow360<span className="logo-dot"></span>
-        </Link>
-      </header>
+      {/* Top Right Back to Website Button */}
+      <Link to="/" className="back-to-website-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Back to website</span>
+      </Link>
 
       {/* Main Split Layout */}
       <main className="signup-wrapper">
-        {/* LEFT HERO / AMBIENT PANEL */}
-        <section className="hero-panel">
-          <div>
-            <div className="pill">
-              <span className="pulse-dot"></span>
-              <span>Self-Governing Engine v1.0</span>
-            </div>
-
-            <h1>
-              Take total control of your <br />
-              <span className="editorial">sales operations.</span>
-            </h1>
-
-            <p className="lead" style={{ marginBottom: '2rem' }}>
-              Self-governing discount tiers, automated warehouse routing, and predictive deal intelligence.
-            </p>
-
-            {/* Highlights */}
-            <div className="admin-features-list" style={{ gap: '1.1rem', marginBottom: '2rem' }}>
-              <div className="feature-row">
-                <div className="feature-icon-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-                <div className="feature-text">
-                  <strong>Automated Pricing Discipline</strong>
-                  <span>Enforces category ceilings and multi-tiered approval chains.</span>
-                </div>
-              </div>
-
-              <div className="feature-row">
-                <div className="feature-icon-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="1" y="3" width="15" height="13" />
-                    <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
-                    <circle cx="5.5" cy="18.5" r="2.5" />
-                    <circle cx="18.5" cy="18.5" r="2.5" />
-                  </svg>
-                </div>
-                <div className="feature-text">
-                  <strong>Smart Stock Splitting</strong>
-                  <span>Real-time multi-depot stock routing with zero manual work.</span>
-                </div>
-              </div>
-
-              <div className="feature-row">
-                <div className="feature-icon-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 16v-4" />
-                    <path d="M12 8h.01" />
-                  </svg>
-                </div>
-                <div className="feature-text">
-                  <strong>Predictive Win Telemetry</strong>
-                  <span>ML-backed customer negotiation acceptance rates.</span>
-                </div>
-              </div>
-            </div>
+        {/* LEFT HERO / CURVY IMAGE PANEL */}
+        <section className="hero-panel hero-panel-image">
+          <div className="hero-image-wrapper">
+            <img
+              src="/loginhd.png"
+              alt="DealFlow360 Collaboration"
+              className="hero-image-cover"
+            />
           </div>
         </section>
 

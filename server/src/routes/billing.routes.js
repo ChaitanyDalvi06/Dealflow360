@@ -1,14 +1,34 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.js';
 import { generateInvoices, recordPayment, getInvoices } from '../services/billing.service.js';
+import { generateQuotationInvoicePdf } from '../services/pdf.service.js';
 
 const router = Router();
 
-// ─── GENERATE INVOICES FOR A CONFIRMED QUOTATION ────────────
+// ─── GENERATE INVOICES & PDF FOR A CONFIRMED/APPROVED QUOTATION ────────────
 router.post('/generate/:quotationId', authenticate, async (req, res, next) => {
   try {
     const invoices = await generateInvoices(req.params.quotationId);
-    res.status(201).json({ invoices, message: 'Invoices generated successfully' });
+    const pdfInfo = await generateQuotationInvoicePdf(req.params.quotationId);
+    res.status(201).json({ 
+      invoices, 
+      pdfUrl: `/api/billing/pdf/${req.params.quotationId}`,
+      fileName: pdfInfo.fileName,
+      invoiceNumber: pdfInfo.invoiceNumber,
+      message: 'Invoice & official PDF generated successfully' 
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── STREAM / DOWNLOAD INVOICE PDF ──────────────────────────
+router.get('/pdf/:quotationId', authenticate, async (req, res, next) => {
+  try {
+    const pdfInfo = await generateQuotationInvoicePdf(req.params.quotationId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${pdfInfo.fileName}"`);
+    res.sendFile(pdfInfo.filePath);
   } catch (err) {
     next(err);
   }

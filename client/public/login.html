@@ -177,7 +177,47 @@
       flex: 1;
       display: grid;
       grid-template-columns: 1fr 1.15fr;
-      min-height: calc(100vh - 72px);
+      min-height: 100vh;
+    }
+
+    /* Floating Back to Website Button */
+    .back-to-website-btn {
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      z-index: 100;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.15rem;
+      font-family: var(--font-display, 'Space Grotesk', sans-serif);
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #0F2C59;
+      background: #FAF7F2;
+      border: 1.5px solid #0F2C59;
+      border-radius: 9999px;
+      box-shadow: 2px 2px 0px #0F2C59;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+
+    .back-to-website-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 3.5px 3.5px 0px #0F2C59;
+      background: #FFFFFF;
+    }
+
+    .back-to-website-btn svg {
+      transition: transform 0.2s ease;
+    }
+
+    .back-to-website-btn:hover svg {
+      transform: translateX(-3px);
+    }
+
+    .login-nav {
+      display: none !important;
     }
 
     /* LEFT HERO / AMBIENT PANEL */
@@ -189,6 +229,36 @@
       justify-content: center;
       border-right: 1px solid var(--tan-border);
       position: relative;
+    }
+
+    .hero-panel.hero-panel-image {
+      padding: 1.75rem !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border-right: none !important;
+    }
+
+    .hero-image-wrapper {
+      width: 100%;
+      height: 100%;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 1.5px solid #0F2C59;
+      box-shadow: 4px 4px 0px #0F2C59;
+      position: relative;
+      background: #0A1E3D;
+      display: flex;
+    }
+
+    .hero-image-cover {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+      border-radius: 22px;
     }
 
     .hero-panel h1 {
@@ -468,6 +538,12 @@
         border-bottom: 1px solid var(--tan-border);
       }
 
+      .hero-panel.hero-panel-image {
+        height: 280px;
+        min-height: 280px;
+        padding: 0 !important;
+      }
+
       .form-panel {
         padding: 3rem 1.5rem;
       }
@@ -477,71 +553,22 @@
 
 <body>
 
-  <!-- Top Simple Navigation -->
-  <header class="login-nav">
-    <a href="/#hero" class="logo">
-      DealFlow360<span class="logo-dot"></span>
-    </a>
-  </header>
+  <!-- Top Right Navigation Back to Website Button -->
+  <a href="/" class="back-to-website-btn" id="backToWebsiteBtn">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+    <span>Back to website</span>
+  </a>
 
   <!-- Main Split Layout -->
   <main class="login-wrapper">
 
-    <!-- LEFT HERO / BRAND PANEL -->
-    <section class="hero-panel">
-      <div>
-        <h1>
-          Welcome back to <br />
-          <span class="editorial">DealFlow360.</span>
-        </h1>
-
-        <p class="lead">
-          Access your real-time sales workspace, discount approval chains, and customer negotiation telemetry.
-        </p>
-
-        <!-- Minimal 3-Point Highlights -->
-        <div class="features-list">
-          
-          <div class="feature-row">
-            <div class="feature-icon-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Instant Deal Governance</strong>
-              <span>Review pending discount requests and blended risk scores.</span>
-            </div>
-          </div>
-
-          <div class="feature-row">
-            <div class="feature-icon-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="2" />
-                <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Real-Time Pipeline Telemetry</strong>
-              <span>Live Redpanda event stream monitoring stalled quotes.</span>
-            </div>
-          </div>
-
-          <div class="feature-row">
-            <div class="feature-icon-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-            </div>
-            <div class="feature-text">
-              <strong>Negotiation Room</strong>
-              <span>Interactive customer counter-offers with ML acceptance prediction.</span>
-            </div>
-          </div>
-
-        </div>
+    <!-- LEFT HERO / IMAGE PANEL -->
+    <section class="hero-panel hero-panel-image">
+      <div class="hero-image-wrapper">
+        <img src="/loginhd.png" alt="DealFlow360 Intelligent Negotiation" class="hero-image-cover" />
       </div>
     </section>
 

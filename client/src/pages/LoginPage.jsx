@@ -53,68 +53,25 @@ export default function LoginPage() {
 
   return (
     <div className="login-page-root">
-      {/* Top Simple Navigation */}
-      <header className="login-nav">
-        <Link to="/#hero" className="logo">
-          DealFlow360<span className="logo-dot"></span>
-        </Link>
-      </header>
+      {/* Top Right Back to Website Button */}
+      <Link to="/" className="back-to-website-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Back to website</span>
+      </Link>
 
       {/* Main Split Layout */}
       <main className="login-wrapper">
-        {/* LEFT HERO / BRAND PANEL */}
-        <section className="hero-panel">
-          <div>
-            <h1>
-              Welcome back to <br />
-              <span className="editorial">DealFlow360.</span>
-            </h1>
-
-            <p className="lead">
-              Access your real-time sales workspace, discount approval chains, and customer negotiation telemetry.
-            </p>
-
-            {/* Minimal 3-Point Highlights */}
-            <div className="features-list">
-              <div className="feature-row">
-                <div className="feature-icon-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-                <div className="feature-text">
-                  <strong>Instant Deal Governance</strong>
-                  <span>Review pending discount requests and blended risk scores.</span>
-                </div>
-              </div>
-
-              <div className="feature-row">
-                <div className="feature-icon-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="2" />
-                    <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
-                  </svg>
-                </div>
-                <div className="feature-text">
-                  <strong>Real-Time Pipeline Telemetry</strong>
-                  <span>Live event stream monitoring stalled quotes and deals.</span>
-                </div>
-              </div>
-
-              <div className="feature-row">
-                <div className="feature-icon-box">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M12 16v-4" />
-                    <path d="M12 8h.01" />
-                  </svg>
-                </div>
-                <div className="feature-text">
-                  <strong>Negotiation Room</strong>
-                  <span>Interactive customer counter-offers with ML acceptance prediction.</span>
-                </div>
-              </div>
-            </div>
+        {/* LEFT HERO / CURVY IMAGE PANEL */}
+        <section className="hero-panel hero-panel-image">
+          <div className="hero-image-wrapper">
+            <img
+              src="/loginhd.png"
+              alt="DealFlow360 Collaboration"
+              className="hero-image-cover"
+            />
           </div>
         </section>
 

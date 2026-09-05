@@ -174,7 +174,13 @@ router.get('/', authenticate, async (req, res, next) => {
     if (req.user.role === 'SALES_REP') {
       where.repId = req.user.id;
     }
-    if (status) where.status = status;
+    if (status) {
+      if (status.includes(',')) {
+        where.status = { in: status.split(',').map(s => s.trim()) };
+      } else {
+        where.status = status;
+      }
+    }
     if (customerId) where.customerId = customerId;
 
     const quotations = await prisma.quotation.findMany({
@@ -183,6 +189,7 @@ router.get('/', authenticate, async (req, res, next) => {
         customer: { select: { id: true, name: true, tier: true, company: true } },
         rep: { select: { id: true, name: true } },
         lines: { include: { product: { select: { id: true, name: true, category: true } } } },
+        invoices: { select: { id: true, type: true, amount: true, status: true, issuedAt: true } },
         _count: { select: { approvalSteps: true } },
       },
       orderBy: { lastActivityAt: 'desc' },

@@ -12,6 +12,7 @@ import BillingPage from './pages/BillingPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
 import ReportsPage from './pages/ReportsPage';
+import FinanceDealsPage from './pages/FinanceDealsPage';
 
 // Portal imports
 import PortalQuotePage from './pages/portal/PortalQuotePage';
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="/billing" element={<BillingPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/finance/deals" element={<FinanceDealsPage />} />
       </Route>
 
       {/* 4. Customer Portal — separate layout, separate auth */}

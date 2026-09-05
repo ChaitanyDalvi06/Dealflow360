@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { Calendar, Bell, ChevronDown, LogOut, User, CheckCircle, Clock, CheckCheck } from 'lucide-react';
+import { Calendar, Bell, ChevronDown, LogOut, CheckCircle, Clock, CheckCheck } from 'lucide-react';
 
 export default function TopNav() {
   const { user, logout } = useAuth();
@@ -138,16 +138,6 @@ export default function TopNav() {
                 <div className="d-name">{displayName}</div>
                 <div className="d-email">{user?.email || 'sales@gmail.com'}</div>
               </div>
-              <div className="dropdown-divider" />
-              <button
-                className="dropdown-item"
-                onClick={() => {
-                  navigate('/admin');
-                  setDropdownOpen(false);
-                }}
-              >
-                <User size={15} /> Account Settings
-              </button>
               <div className="dropdown-divider" />
               <button className="dropdown-item text-danger" onClick={handleLogout}>
                 <LogOut size={15} /> Sign Out

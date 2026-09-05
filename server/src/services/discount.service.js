@@ -76,19 +76,19 @@ export async function getRequiredApprovalLevel(blendedScore, totalMarginPct = nu
   const financeThreshold = Number(config.financeThreshold);
   const minMarginFloor = config.minMarginFloor ? Number(config.minMarginFloor) : 20;
 
-  // 1. Margin floor breach check: if total deal margin % is below the minimum threshold, automatically escalate to FINANCE!
+  // 1. Margin floor breach check: flag it but route to MANAGER (sole gatekeeper)
   if (totalMarginPct !== null && totalMarginPct < minMarginFloor) {
     return {
-      level: 'FINANCE',
+      level: 'MANAGER',
       marginBreach: true,
       minMarginFloor,
       marginPct: totalMarginPct,
     };
   }
 
-  // 2. If high blended risk score >= financeThreshold, escalate to FINANCE (after Manager)
+  // 2. If high blended risk score >= financeThreshold, still route to MANAGER (sole gatekeeper)
   if (blendedScore >= financeThreshold) {
-    return { level: 'FINANCE', marginBreach: false, blendedScore };
+    return { level: 'MANAGER', marginBreach: false, blendedScore };
   }
 
   // 3. If there are NO discounts at all (0% discount across all lines) and score is 0, auto-approve

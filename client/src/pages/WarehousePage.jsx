@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import { formatCurrency } from '../utils/formatters';
 import { 
-  Warehouse as WarehouseIcon, Package, Truck, CheckCircle, 
-  Split, RefreshCw, AlertTriangle, Layers, ArrowRight
+  Warehouse as WarehouseIcon, Package, Truck, CheckCircle2, 
+  Split, RefreshCw, Layers, ArrowRight, MapPin, Building2,
+  TrendingUp, ShieldCheck, User, Sparkles
 } from 'lucide-react';
 
 export default function WarehousePage() {
@@ -102,17 +103,35 @@ export default function WarehousePage() {
     }
   };
 
+  // Summary KPIs for network strip
+  const totalWarehouses = warehouses.length;
+  const totalUnits = warehouses.reduce((sum, wh) => sum + (wh.stockLevels?.reduce((acc, s) => acc + s.quantity, 0) || 0), 0);
+  const totalSkus = new Set(warehouses.flatMap(wh => wh.stockLevels?.map(s => s.productId) || [])).size;
+  const avgCostWeight = warehouses.length > 0
+    ? (warehouses.reduce((sum, wh) => sum + Number(wh.shippingCostWeight || 1), 0) / warehouses.length).toFixed(1)
+    : '1.0';
+
   return (
     <div className="warehouse-container">
       {/* Header */}
-      <div className="warehouse-header card">
-        <div className="header-info">
-          <h2><WarehouseIcon size={24} /> Multi-Warehouse Operations</h2>
-          <p>Real-time stock monitoring & optimal cheapest-first fulfillment routing.</p>
+      <div className="warehouse-header-modern">
+        <div className="wh-header-content">
+          <div className="wh-header-icon-box">
+            <WarehouseIcon size={24} />
+          </div>
+          <div className="wh-header-titles">
+            <h2>Multi-Warehouse Operations</h2>
+            <p>Real-time stock monitoring & optimal cheapest-first fulfillment routing.</p>
+          </div>
         </div>
-        <button className="btn btn-secondary" onClick={fetchData}>
-          <RefreshCw size={15} /> Refresh Stock
-        </button>
+        <div className="wh-header-actions">
+          <span className="wh-telemetry-badge">
+            <span className="wh-telemetry-dot" /> Live Stock Mesh Active
+          </span>
+          <button className="btn btn-outline-primary" onClick={fetchData}>
+            <RefreshCw size={14} /> Refresh Stock
+          </button>
+        </div>
       </div>
 
       {feedback.message && (
@@ -121,39 +140,105 @@ export default function WarehousePage() {
         </div>
       )}
 
+      {/* Network Quick KPI Strip */}
+      <div className="wh-network-strip">
+        <div className="wh-network-stat-card">
+          <div className="wh-net-stat-icon blue">
+            <Building2 size={22} />
+          </div>
+          <div className="wh-net-stat-data">
+            <span className="wh-net-stat-val">{totalWarehouses}</span>
+            <span className="wh-net-stat-lbl">Active Fulfillment Nodes</span>
+          </div>
+        </div>
+        <div className="wh-network-stat-card">
+          <div className="wh-net-stat-icon green">
+            <Package size={22} />
+          </div>
+          <div className="wh-net-stat-data">
+            <span className="wh-net-stat-val">{totalUnits.toLocaleString()}</span>
+            <span className="wh-net-stat-lbl">Network Stock Units</span>
+          </div>
+        </div>
+        <div className="wh-network-stat-card">
+          <div className="wh-net-stat-icon amber">
+            <Layers size={22} />
+          </div>
+          <div className="wh-net-stat-data">
+            <span className="wh-net-stat-val">{totalSkus}</span>
+            <span className="wh-net-stat-lbl">Catalog SKUs Tracked</span>
+          </div>
+        </div>
+        <div className="wh-network-stat-card">
+          <div className="wh-net-stat-icon purple">
+            <TrendingUp size={22} />
+          </div>
+          <div className="wh-net-stat-data">
+            <span className="wh-net-stat-val">{avgCostWeight}x</span>
+            <span className="wh-net-stat-lbl">Avg Transit Cost Multiplier</span>
+          </div>
+        </div>
+      </div>
+
       {/* Warehouses Overview Grid */}
       <div className="warehouse-cards-grid">
         {warehouses.map(wh => {
-          const totalUnits = wh.stockLevels?.reduce((acc, s) => acc + s.quantity, 0) || 0;
+          const totalUnitsInWh = wh.stockLevels?.reduce((acc, s) => acc + s.quantity, 0) || 0;
+          const costWeight = Number(wh.shippingCostWeight || 1);
+          const weightClass = costWeight <= 1.0 ? 'weight-opt' : costWeight <= 1.2 ? 'weight-mid' : 'weight-high';
+
           return (
-            <div key={wh.id} className="card wh-kpi-card">
+            <div key={wh.id} className="wh-kpi-card">
               <div className="wh-card-top">
                 <div className="wh-title">
-                  <Package size={20} className="wh-icon" />
-                  <div>
+                  <div className="wh-avatar">
+                    <Building2 size={20} />
+                  </div>
+                  <div className="wh-meta">
                     <strong>{wh.name}</strong>
-                    <div className="wh-loc">{wh.location || 'Fulfillment Node'}</div>
+                    <div className="wh-loc">
+                      <MapPin size={12} />
+                      <span>{wh.location || 'Regional Fulfillment Node'}</span>
+                    </div>
                   </div>
                 </div>
-                <span className="badge badge-info">Cost Weight: {Number(wh.shippingCostWeight).toFixed(1)}x</span>
+                <span className={`wh-weight-chip ${weightClass}`}>
+                  {costWeight.toFixed(1)}x Weight
+                </span>
               </div>
-              <div className="wh-stat-row">
-                <div className="wh-stat">
-                  <span className="wh-stat-val font-mono">{totalUnits}</span>
-                  <span className="wh-stat-lbl">Units In Stock</span>
+
+              {/* Metrics Tile */}
+              <div className="wh-metrics-tiles">
+                <div className="wh-metric-tile">
+                  <span className="wh-metric-val">{totalUnitsInWh.toLocaleString()}</span>
+                  <span className="wh-metric-lbl">Units In Stock</span>
                 </div>
-                <div className="wh-stat">
-                  <span className="wh-stat-val font-mono">{wh.stockLevels?.length || 0}</span>
-                  <span className="wh-stat-lbl">SKUs Stocked</span>
+                <div className="wh-metric-tile">
+                  <span className="wh-metric-val">{wh.stockLevels?.length || 0}</span>
+                  <span className="wh-metric-lbl">SKUs Stocked</span>
                 </div>
               </div>
+
+              {/* SKUs Preview Chips */}
+              {wh.stockLevels && wh.stockLevels.length > 0 && (
+                <div className="wh-skus-preview">
+                  {wh.stockLevels.slice(0, 3).map(s => (
+                    <span key={s.id} className="wh-sku-tag">
+                      {s.product?.name || 'SKU'}: <strong>{s.quantity}</strong>
+                    </span>
+                  ))}
+                  {wh.stockLevels.length > 3 && (
+                    <span className="wh-sku-tag">+{wh.stockLevels.length - 3} more</span>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
 
       {/* Split Allocation Workspace */}
-      <div className="warehouse-split-section card">
+      <div className="warehouse-split-section">
         <div className="split-section-header">
           <div className="split-title-group">
             <h3><Split size={20} /> Automated Fulfillment Split</h3>
@@ -179,37 +264,57 @@ export default function WarehousePage() {
 
         {selectedQuote && (
           <div className="split-quote-preview">
-            <div className="quote-mini-details">
-              <span>Customer: <strong>{selectedQuote.customer?.name}</strong></span>
-              <span>Status: <strong className="text-success">{selectedQuote.status}</strong></span>
-              <span>Total Value: <strong className="font-mono">{formatCurrency(selectedQuote.totalAmount)}</strong></span>
+            <div className="quote-meta-ribbon">
+              <div className="quote-ribbon-item">
+                <User size={15} color="#0F2C59" />
+                <span>Customer: <strong>{selectedQuote.customer?.name}</strong></span>
+              </div>
+              <div className="quote-ribbon-sep" />
+              <div className="quote-ribbon-item">
+                <ShieldCheck size={15} color="#059669" />
+                <span>Status: <strong className="badge badge-success" style={{ marginLeft: '4px' }}>{selectedQuote.status}</strong></span>
+              </div>
+              <div className="quote-ribbon-sep" />
+              <div className="quote-ribbon-item">
+                <span>Total Value: <strong className="font-mono text-navy font-bold">{formatCurrency(selectedQuote.totalAmount)}</strong></span>
+              </div>
+              <div className="quote-ribbon-sep" />
+              <div className="quote-ribbon-item">
+                <span>Dispatch Items: <strong>{selectedQuote.lines?.length || 0} Products</strong></span>
+              </div>
             </div>
 
-            <h4 className="section-subheading">Items Requiring Dispatch:</h4>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th>Quantity Needed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedQuote.lines?.map(l => (
-                  <tr key={l.id}>
-                    <td><strong>{l.product?.name}</strong> <small>({l.product?.sku})</small></td>
-                    <td><span className="badge badge-sm">{l.product?.category}</span></td>
-                    <td className="font-mono font-bold">{l.quantity} units</td>
+            <h4 className="section-subheading-clean">Items Requiring Regional Dispatch:</h4>
+            <div className="split-table-wrapper">
+              <table className="split-dispatch-table">
+                <thead>
+                  <tr>
+                    <th>Product & SKU</th>
+                    <th>Category</th>
+                    <th style={{ textAlign: 'right' }}>Quantity Needed</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {selectedQuote.lines?.map(l => (
+                    <tr key={l.id}>
+                      <td>
+                        <strong>{l.product?.name}</strong>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{l.product?.sku}</div>
+                      </td>
+                      <td><span className="cat-tag-pill">{l.product?.category}</span></td>
+                      <td style={{ textAlign: 'right' }} className="font-mono font-bold text-navy">{l.quantity} units</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="split-action-bar">
               <button
-                className="btn btn-primary"
+                className="btn btn-primary btn-lg"
                 onClick={handleSimulateSplit}
                 disabled={calculating}
+                style={{ borderRadius: '12px', padding: '12px 24px' }}
               >
                 {calculating ? (
                   <>
@@ -217,7 +322,7 @@ export default function WarehousePage() {
                   </>
                 ) : (
                   <>
-                    <Truck size={16} /> Run Cheapest-First Split Algorithm
+                    <Truck size={17} /> Run Cheapest-First Split Algorithm
                   </>
                 )}
               </button>
@@ -229,48 +334,62 @@ export default function WarehousePage() {
         {splitSimulation && (
           <div className="split-result-box">
             <div className="split-result-header">
-              <CheckCircle size={22} color="#28a745" />
+              <div className="split-result-header-icon">
+                <CheckCircle2 size={24} />
+              </div>
               <div>
                 <h4>Optimal Fulfillment Route Computed</h4>
                 <p>Items distributed across warehouses to minimize delivery transit cost:</p>
               </div>
             </div>
 
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Fulfillment Warehouse</th>
-                  <th>Product</th>
-                  <th>Fulfilled Qty</th>
-                  <th>Backorder Qty</th>
-                  <th>Routing Efficiency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {splitSimulation.splits?.map((s, idx) => (
-                  <tr key={idx}>
-                    <td>
-                      <WarehouseIcon size={14} /> <strong>{s.warehouseName}</strong>
-                    </td>
-                    <td>{s.productName}</td>
-                    <td className="font-mono font-bold text-success">{s.quantityFulfilled} units</td>
-                    <td className="font-mono text-danger">{s.quantityBackordered || 0}</td>
-                    <td>
-                      <span className="badge badge-success">Optimized</span>
-                    </td>
+            <div className="split-table-wrapper">
+              <table className="split-dispatch-table">
+                <thead>
+                  <tr>
+                    <th>Fulfillment Warehouse</th>
+                    <th>Product</th>
+                    <th style={{ textAlign: 'right' }}>Fulfilled Qty</th>
+                    <th style={{ textAlign: 'right' }}>Backorder Qty</th>
+                    <th style={{ textAlign: 'center' }}>Routing Efficiency</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {splitSimulation.splits?.map((s, idx) => (
+                    <tr key={idx}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <WarehouseIcon size={15} color="#0F2C59" />
+                          <strong>{s.warehouseName}</strong>
+                        </div>
+                      </td>
+                      <td>{s.productName}</td>
+                      <td style={{ textAlign: 'right' }} className="font-mono font-bold text-success">
+                        {s.quantityFulfilled} units
+                      </td>
+                      <td style={{ textAlign: 'right' }} className="font-mono text-danger">
+                        {s.quantityBackordered || 0}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <span className="badge badge-success" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                          Transit Optimal
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             <div className="confirm-split-footer">
               <button
                 className="btn btn-success btn-lg"
                 onClick={handleConfirmSplit}
                 disabled={savingSplit}
+                style={{ borderRadius: '12px', padding: '12px 24px' }}
               >
                 {savingSplit ? 'Allocating & Decrementing...' : 'Lock Allocation & Deduct Stock'}
-                {!savingSplit && <ArrowRight size={18} />}
+                {!savingSplit && <ArrowRight size={18} style={{ marginLeft: '8px' }} />}
               </button>
             </div>
           </div>

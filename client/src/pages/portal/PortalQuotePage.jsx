@@ -79,24 +79,46 @@ export default function PortalQuotePage() {
     }
   };
 
-  // Canvas drawing handlers
+  // Canvas drawing handlers with high-precision ink & touch support
+  const getCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches[0]) {
+      return {
+        x: e.touches[0].clientX - rect.left,
+        y: e.touches[0].clientY - rect.top,
+      };
+    }
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  };
+
   const startDrawing = (e) => {
+    if (e.type === 'touchstart') e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#0F2C59';
+    const { x, y } = getCoordinates(e);
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.moveTo(x, y);
     setIsDrawing(true);
   };
 
   const draw = (e) => {
     if (!isDrawing) return;
+    if (e.type === 'touchmove') e.preventDefault();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    const { x, y } = getCoordinates(e);
+    ctx.lineTo(x, y);
     ctx.stroke();
   };
 
@@ -111,6 +133,25 @@ export default function PortalQuotePage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
+  // Download official signed PDF
+  const handleDownloadPdf = async () => {
+    try {
+      const response = await api.get(`/billing/pdf/${quote.id}`, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `DealFlow360-Contract-${quote.quoteNumber || quote.id.slice(-6).toUpperCase()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (err) {
+      console.warn('PDF download fallback to browser print:', err);
+      window.print();
+    }
+  };
+
   // Submit E-Signature
   const handleSignConfirm = async () => {
     if (!signerName.trim()) {
@@ -120,7 +161,7 @@ export default function PortalQuotePage() {
     try {
       setSigning(true);
       const signatureData = signatureType === 'DRAW' && canvasRef.current
-        ? canvasRef.current.toDataURL()
+        ? canvasRef.current.toDataURL('image/png')
         : `Signed by: ${signerName}`;
 
       await api.post(`/portal/quote/${activeToken}/sign`, {
@@ -134,6 +175,11 @@ export default function PortalQuotePage() {
       // Reload quote
       const updatedRes = await api.get(`/portal/quote/${activeToken}`);
       setQuote(updatedRes.data);
+
+      // Trigger automatic PDF download of the signed contract
+      setTimeout(() => {
+        handleDownloadPdf();
+      }, 600);
     } catch (err) {
       alert('Signing failed: ' + (err.response?.data?.error || err.message));
     } finally {
@@ -175,7 +221,7 @@ export default function PortalQuotePage() {
         </div>
         <div className="portal-top-actions">
           <span className="quote-status-pill">{quote.status}</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>
+          <button className="btn btn-secondary btn-sm" onClick={handleDownloadPdf}>
             <Download size={14} /> Download PDF
           </button>
         </div>
@@ -504,6 +550,9 @@ export default function PortalQuotePage() {
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
                     onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
                   />
                   <div className="canvas-controls">
                     <button type="button" className="btn btn-sm btn-secondary" onClick={clearCanvas}>

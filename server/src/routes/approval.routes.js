@@ -127,7 +127,7 @@ async function resolveQuotationId(paramId) {
 }
 
 // ─── APPROVE / REJECT / RETURN ──────────────────────────────
-router.post('/:quotationId/action', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), async (req, res, next) => {
+router.post('/:quotationId/action', authenticate, authorize('SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
     const { action, reason } = req.body; // action: 'APPROVED' | 'REJECTED' | 'RETURNED'
 
@@ -156,7 +156,7 @@ router.post('/:quotationId/action', authenticate, authorize('SALES_MANAGER', 'FI
   }
 });
 
-router.post('/:id/approve', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), async (req, res, next) => {
+router.post('/:id/approve', authenticate, authorize('SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
     const quotationId = await resolveQuotationId(req.params.id);
     const reason = req.body.comments || req.body.reason || 'Approved by ' + req.user.role;
@@ -170,7 +170,7 @@ router.post('/:id/approve', authenticate, authorize('SALES_MANAGER', 'FINANCE', 
   }
 });
 
-router.post('/:id/reject', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), async (req, res, next) => {
+router.post('/:id/reject', authenticate, authorize('SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
     const quotationId = await resolveQuotationId(req.params.id);
     const reason = req.body.comments || req.body.reason || 'Rejected by ' + req.user.role;
@@ -184,7 +184,7 @@ router.post('/:id/reject', authenticate, authorize('SALES_MANAGER', 'FINANCE', '
   }
 });
 
-router.post('/:id/return', authenticate, authorize('SALES_MANAGER', 'FINANCE', 'ADMIN'), async (req, res, next) => {
+router.post('/:id/return', authenticate, authorize('SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
     const quotationId = await resolveQuotationId(req.params.id);
     const reason = req.body.comments || req.body.reason || 'Returned for revision';

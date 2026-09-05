@@ -43,3 +43,5 @@ venv/
 **/venv/
 .venv/
 **/env/
+storage/
+**/storage/

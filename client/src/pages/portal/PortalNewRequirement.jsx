@@ -1,8 +1,273 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { portalApi } from '../../utils/api';
-import { Plus, Minus, Send, Package, Search, X, Sparkles, CheckCircle, MessageSquare } from 'lucide-react';
+import { 
+  Plus, Minus, Send, Package, Search, X, Sparkles, CheckCircle, 
+  MessageSquare, TrendingUp, PieChart, ShieldCheck, Clock, ArrowRight,
+  Layers, ShoppingCart, Tag, Check, Laptop, Shirt, Backpack, Box,
+  Info, BarChart3, HelpCircle, ArrowUpRight
+} from 'lucide-react';
 
+// Helper to pick dynamic product icon based on category/name
+function getProductIcon(product) {
+  const text = `${product.name} ${product.category} ${product.description || ''}`.toLowerCase();
+  if (text.includes('laptop') || text.includes('computer') || text.includes('hardware')) {
+    return Laptop;
+  }
+  if (text.includes('shirt') || text.includes('jersey') || text.includes('apparel')) {
+    return Shirt;
+  }
+  if (text.includes('backpack') || text.includes('bag')) {
+    return Backpack;
+  }
+  return Package;
+}
+
+// Helper to pick category color palette
+function getCategoryColor(category) {
+  const cat = (category || '').toLowerCase();
+  if (cat.includes('hard') || cat.includes('tech')) {
+    return { bg: 'rgba(37, 99, 235, 0.08)', text: '#2563eb', border: 'rgba(37, 99, 235, 0.25)' };
+  }
+  if (cat.includes('access')) {
+    return { bg: 'rgba(16, 185, 129, 0.08)', text: '#059669', border: 'rgba(16, 185, 129, 0.25)' };
+  }
+  if (cat.includes('soft') || cat.includes('cloud')) {
+    return { bg: 'rgba(139, 92, 246, 0.08)', text: '#7c3aed', border: 'rgba(139, 92, 246, 0.25)' };
+  }
+  return { bg: 'rgba(245, 158, 11, 0.08)', text: '#d97706', border: 'rgba(245, 158, 11, 0.25)' };
+}
+
+// ─── ANIMATED VOLUME DISCOUNT CURVE GRAPH ─────────────────────────
+function VolumeDiscountGraph({ totalUnits }) {
+  // Volume tiers:
+  // 1-9: 3% baseline
+  // 10-49: 8% Tier 1
+  // 50-149: 15% Tier 2 (Preferred)
+  // 150+: 22% Tier 3 (Enterprise Max)
+  let discountPct = 0;
+  let tierLabel = 'Standard Base';
+  let nextMilestoneText = '';
+
+  if (totalUnits === 0) {
+    discountPct = 0;
+    tierLabel = 'No items added';
+    nextMilestoneText = 'Add 10+ units to unlock Tier 1 volume discount';
+  } else if (totalUnits < 10) {
+    discountPct = 3;
+    tierLabel = 'Standard Baseline (3%)';
+    nextMilestoneText = `Add ${10 - totalUnits} more unit${10 - totalUnits === 1 ? '' : 's'} to unlock 8% Volume Tier`;
+  } else if (totalUnits < 50) {
+    discountPct = 8;
+    tierLabel = 'Volume Tier 1 (8%)';
+    nextMilestoneText = `Add ${50 - totalUnits} more unit${50 - totalUnits === 1 ? '' : 's'} to unlock 15% Preferred Tier`;
+  } else if (totalUnits < 150) {
+    discountPct = 15;
+    tierLabel = 'Preferred Tier 2 (15%)';
+    nextMilestoneText = `Add ${150 - totalUnits} more unit${150 - totalUnits === 1 ? '' : 's'} to unlock 22% Enterprise Max Tier`;
+  } else {
+    discountPct = 22;
+    tierLabel = 'Enterprise Max Tier (22%)';
+    nextMilestoneText = 'Maximum volume discount bracket unlocked!';
+  }
+
+  // Calculate normalized X position along 0 to 200 units (range 40 to 360 on SVG)
+  const clampedUnits = Math.min(200, Math.max(0, totalUnits));
+  const beaconX = 40 + (clampedUnits / 200) * 320;
+  // Curve height calculation (SVG y is inverted: 130 is 0%, 25 is 25%)
+  const beaconY = 130 - (discountPct / 25) * 95;
+
+  return (
+    <div className="portal-graph-card">
+      <div className="portal-graph-card__header">
+        <div className="portal-graph-card__title">
+          <TrendingUp size={16} color="#2563eb" />
+          <span>Volume Discount Intelligence Curve</span>
+        </div>
+        <span className="portal-graph-badge">
+          {discountPct}% Projected Discount
+        </span>
+      </div>
+
+      <div className="portal-graph-svg-wrap">
+        <svg viewBox="0 0 400 150" className="portal-animated-svg">
+          <defs>
+            <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
+            </linearGradient>
+            <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#0ea5e9" />
+              <stop offset="50%" stopColor="#2563eb" />
+              <stop offset="100%" stopColor="#10b981" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines */}
+          <line x1="40" y1="130" x2="380" y2="130" stroke="rgba(15, 44, 89, 0.08)" strokeDasharray="4" />
+          <line x1="40" y1="85" x2="380" y2="85" stroke="rgba(15, 44, 89, 0.08)" strokeDasharray="4" />
+          <line x1="40" y1="40" x2="380" y2="40" stroke="rgba(15, 44, 89, 0.08)" strokeDasharray="4" />
+
+          {/* Tier Threshold Vertical Markers */}
+          {/* 10 units */}
+          <line x1="56" y1="20" x2="56" y2="130" stroke="rgba(15, 44, 89, 0.06)" />
+          <text x="56" y="142" fontSize="9" fill="#94a3b8" textAnchor="middle">10u</text>
+
+          {/* 50 units */}
+          <line x1="120" y1="20" x2="120" y2="130" stroke="rgba(15, 44, 89, 0.06)" />
+          <text x="120" y="142" fontSize="9" fill="#94a3b8" textAnchor="middle">50u</text>
+
+          {/* 150 units */}
+          <line x1="280" y1="20" x2="280" y2="130" stroke="rgba(15, 44, 89, 0.06)" />
+          <text x="280" y="142" fontSize="9" fill="#94a3b8" textAnchor="middle">150u</text>
+
+          {/* Area Fill */}
+          <path
+            d="M 40 130 Q 100 115, 140 85 T 280 45 T 380 35 L 380 130 Z"
+            fill="url(#curveGradient)"
+          />
+
+          {/* Animated Curve Path */}
+          <path
+            d="M 40 130 Q 100 115, 140 85 T 280 45 T 380 35"
+            fill="none"
+            stroke="url(#lineGradient)"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            className="portal-curve-draw"
+          />
+
+          {/* Current Volume Beacon */}
+          {totalUnits > 0 && (
+            <g className="portal-beacon-group" transform={`translate(${beaconX}, ${beaconY})`}>
+              <circle r="12" fill="#2563eb" opacity="0.2" className="portal-beacon-pulse" />
+              <circle r="6" fill="#2563eb" stroke="#ffffff" strokeWidth="2.5" />
+            </g>
+          )}
+        </svg>
+      </div>
+
+      <div className="portal-graph-card__footer">
+        <div className="portal-graph-metric">
+          <span className="label">Current Status:</span>
+          <strong className="value">{tierLabel}</strong>
+        </div>
+        <div className="portal-graph-milestone">
+          <Info size={13} />
+          <span>{nextMilestoneText}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ANIMATED CATEGORY COMPOSITION DONUT ─────────────────────────
+function CategoryDonutGraph({ selectedItems }) {
+  const categoryCounts = useMemo(() => {
+    const counts = {};
+    selectedItems.forEach(item => {
+      const cat = item.category || 'General';
+      counts[cat] = (counts[cat] || 0) + item.quantity;
+    });
+    return counts;
+  }, [selectedItems]);
+
+  const totalUnits = useMemo(() => {
+    return Object.values(categoryCounts).reduce((a, b) => a + b, 0);
+  }, [categoryCounts]);
+
+  const categories = Object.keys(categoryCounts);
+
+  const colors = ['#2563eb', '#10b981', '#7c3aed', '#f59e0b', '#ec4899'];
+
+  if (totalUnits === 0) {
+    return (
+      <div className="portal-donut-card portal-donut-card--empty">
+        <PieChart size={24} color="#94a3b8" />
+        <span>Select items to visualize order category distribution</span>
+      </div>
+    );
+  }
+
+  // Calculate SVG stroke dashes for donut
+  const circumference = 2 * Math.PI * 36; // radius = 36 -> ~226.2
+  let accumulatedPercent = 0;
+
+  const slices = categories.map((cat, idx) => {
+    const qty = categoryCounts[cat];
+    const pct = qty / totalUnits;
+    const strokeDasharray = `${pct * circumference} ${circumference}`;
+    const strokeDashoffset = -accumulatedPercent * circumference;
+    accumulatedPercent += pct;
+    return {
+      category: cat,
+      qty,
+      pct: Math.round(pct * 100),
+      color: colors[idx % colors.length],
+      strokeDasharray,
+      strokeDashoffset,
+    };
+  });
+
+  return (
+    <div className="portal-donut-card">
+      <div className="portal-donut-card__header">
+        <div className="portal-donut-card__title">
+          <PieChart size={16} color="#7c3aed" />
+          <span>Requirement Composition</span>
+        </div>
+        <span className="portal-donut-pill">{categories.length} Categor{categories.length === 1 ? 'y' : 'ies'}</span>
+      </div>
+
+      <div className="portal-donut-body">
+        <div className="portal-donut-svg-wrap">
+          <svg viewBox="0 0 100 100" className="portal-donut-svg">
+            <circle
+              cx="50"
+              cy="50"
+              r="36"
+              fill="transparent"
+              stroke="rgba(15, 44, 89, 0.06)"
+              strokeWidth="12"
+            />
+            {slices.map((s, i) => (
+              <circle
+                key={i}
+                cx="50"
+                cy="50"
+                r="36"
+                fill="transparent"
+                stroke={s.color}
+                strokeWidth="12"
+                strokeDasharray={s.strokeDasharray}
+                strokeDashoffset={s.strokeDashoffset}
+                strokeLinecap="round"
+                transform="rotate(-90 50 50)"
+                className="portal-donut-slice"
+              />
+            ))}
+          </svg>
+          <div className="portal-donut-center">
+            <strong>{totalUnits}</strong>
+            <span>Units</span>
+          </div>
+        </div>
+
+        <div className="portal-donut-legend">
+          {slices.map((s, i) => (
+            <div key={i} className="portal-legend-row">
+              <span className="dot" style={{ background: s.color }} />
+              <span className="name">{s.category}</span>
+              <span className="qty">{s.qty} ({s.pct}%)</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN COMPONENT ─────────────────────────────────────────────
 export default function PortalNewRequirement() {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
@@ -10,7 +275,7 @@ export default function PortalNewRequirement() {
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedItems, setSelectedItems] = useState([]); // [{ productId, quantity, name, category }]
+  const [selectedItems, setSelectedItems] = useState([]); // [{ productId, quantity, name, category, unit }]
   const [upsellRecs, setUpsellRecs] = useState([]);
   const [recQuantities, setRecQuantities] = useState({});
   const [submittedOrder, setSubmittedOrder] = useState(null);
@@ -18,6 +283,8 @@ export default function PortalNewRequirement() {
   const [error, setError] = useState('');
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [loadError, setLoadError] = useState('');
+
+  const customer = JSON.parse(localStorage.getItem('df360_portal_customer') || '{}');
 
   const getRecQty = (id) => recQuantities[id] || 1;
   const setRecQty = (id, val) => {
@@ -33,7 +300,7 @@ export default function PortalNewRequirement() {
       setProducts(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to load products:', err);
-      setLoadError('Failed to load catalog products. Please try again.');
+      setLoadError('Failed to load catalog products. Please check connection and retry.');
     } finally {
       setLoadingProducts(false);
     }
@@ -59,15 +326,22 @@ export default function PortalNewRequirement() {
     }
   }, [selectedProductIdsKey]);
 
-  const categories = ['ALL', ...new Set(products.map(p => p.category))];
+  const categories = ['ALL', ...new Set(products.map(p => p.category).filter(Boolean))];
 
-  const filteredProducts = products.filter(p => {
-    const matchesCategory = activeCategory === 'ALL' || p.category === activeCategory;
-    const matchesSearch = !searchQuery ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  const filteredProducts = useMemo(() => {
+    return products.filter(p => {
+      const matchesCategory = activeCategory === 'ALL' || p.category === activeCategory;
+      const matchesSearch = !searchQuery ||
+        p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [products, activeCategory, searchQuery]);
+
+  const totalUnits = useMemo(() => {
+    return selectedItems.reduce((acc, item) => acc + (Number(item.quantity) || 0), 0);
+  }, [selectedItems]);
 
   const addItem = (product, initialQty = 1) => {
     const qtyToAdd = Math.max(1, Number(initialQty) || 1);
@@ -82,6 +356,7 @@ export default function PortalNewRequirement() {
         quantity: qtyToAdd,
         name: product.name,
         category: product.category,
+        unit: product.unit,
       }]);
     }
   };
@@ -100,16 +375,23 @@ export default function PortalNewRequirement() {
     setSelectedItems(selectedItems.filter(i => i.productId !== productId));
   };
 
+  const appendNoteTag = (tagText) => {
+    setNotes(prev => {
+      if (!prev.trim()) return tagText;
+      return `${prev.trim()} • ${tagText}`;
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (!title.trim()) {
-      setError('Please provide a title for your requirement');
+      setError('Please provide a brief requirement title (e.g., Q3 Equipment Refresh)');
       return;
     }
     if (selectedItems.length === 0) {
-      setError('Please select at least one product');
+      setError('Please add at least one product from the catalog below to your requirement');
       return;
     }
 
@@ -140,120 +422,65 @@ export default function PortalNewRequirement() {
         recommendations: orderRecs,
       });
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to submit requirement');
+      setError(err.response?.data?.error || 'Failed to submit requirement. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ─── POST-SUBMISSION SUCCESS SCREEN ─────────────────────────────
   if (submittedOrder) {
     return (
-      <div className="portal-new-req" style={{ maxWidth: '850px', margin: '0 auto', padding: '2rem 1rem' }}>
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <div style={{ width: '50px', height: '50px', borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <CheckCircle size={30} />
+      <div className="portal-submitted-view">
+        <div className="portal-submitted-card">
+          <div className="portal-submitted-header">
+            <div className="portal-success-ring">
+              <CheckCircle size={36} color="#10b981" />
             </div>
             <div>
-              <h2 style={{ margin: 0, fontSize: '1.4rem', color: '#0f172a' }}>Order / Requirement Submitted Successfully!</h2>
-              <p style={{ margin: '4px 0 0', color: '#64748b' }}>
-                Your requirement <strong>"{submittedOrder.title}"</strong> has been queued. A dedicated sales representative will review your terms shortly.
+              <span className="portal-success-badge">Official Requirement Queued</span>
+              <h2>Requirement Submitted to Sales Desk!</h2>
+              <p>
+                Your procurement request <strong>"{submittedOrder.title}"</strong> has been assigned to account management for automated volume pricing formulation.
               </p>
             </div>
           </div>
 
-          <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '1rem 1.25rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
-              Ordered Items ({submittedOrder.items.length})
+          <div className="portal-submitted-items-box">
+            <div className="portal-submitted-items-label">
+              <Package size={15} /> Requested Line Items ({submittedOrder.items.length})
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div className="portal-submitted-chips">
               {submittedOrder.items.map((it, idx) => (
-                <div key={idx} style={{ background: '#fff', border: '1px solid #cbd5e1', padding: '6px 12px', borderRadius: '6px', fontSize: '0.9rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Package size={14} color="#64748b" />
+                <div key={idx} className="portal-submitted-chip">
                   <strong>{it.name || it.productId}</strong>
-                  <span style={{ color: '#0284c7', fontWeight: 600 }}>×{it.quantity}</span>
+                  <span className="qty">×{it.quantity}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Model 1: Immediately Visible Post-Order Complementary Recommendations */}
-          <div style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)', border: '1.5px solid #a7f3d0', borderRadius: '10px', padding: '1.5rem', marginBottom: '1.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={20} color="#059669" />
-                <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#065f46', fontWeight: 700 }}>
-                  Frequently Bought Together (Model 1 Complementary Add-ons)
-                </h3>
-              </div>
-              <span style={{ fontSize: '0.75rem', background: '#d1fae5', color: '#065f46', padding: '3px 8px', borderRadius: '12px', fontWeight: 600 }}>
-                Post-Order Recommendations
-              </span>
-            </div>
-            <p style={{ margin: '0 0 1rem', fontSize: '0.875rem', color: '#047857' }}>
-              Buyers who placed an order for <strong>{submittedOrder.items.map(i => i.name).filter(Boolean).join(', ') || 'these items'}</strong> also frequently added these complementary products:
-            </p>
-
-            {submittedOrder.recommendations.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
-                {submittedOrder.recommendations.map(rec => (
-                  <div key={rec.id} style={{ background: '#fff', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0f172a' }}>{rec.name}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '3px' }}>
-                        {rec.category} • ₹{Number(rec.basePrice || 0).toLocaleString('en-IN')}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#059669', marginTop: '6px', fontWeight: 500 }}>
-                        {rec.reason || `${rec.lift || rec.liftScore}x lift affinity`}
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#065f46', background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>
-                        {rec.lift || rec.liftScore}x Lift
-                      </span>
-                      <button
-                        type="button"
-                        className="portal-btn portal-btn--sm"
-                        style={{ fontSize: '0.75rem', padding: '4px 10px' }}
-                        onClick={() => {
-                          setSubmittedOrder(null);
-                          setSelectedItems([{ productId: rec.id, quantity: 1, name: rec.name, category: rec.category }]);
-                          setTitle(`Add-on: ${rec.name}`);
-                          setNotes(`Complementary add-on request for requirement "${submittedOrder.title}"`);
-                        }}
-                      >
-                        + Add to New Request
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>Evaluating catalog pairings for your order...</p>
-            )}
-          </div>
-
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <div className="portal-submitted-actions">
             {submittedOrder.id && (
-              <Link to={`/portal/requirement/${submittedOrder.id}`} className="portal-btn portal-btn--primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none' }}>
-                <MessageSquare size={16} /> View Requirement & Chat with Sales Rep
+              <Link to={`/portal/requirement/${submittedOrder.id}`} className="portal-btn portal-btn--primary">
+                <MessageSquare size={16} /> Open Requirement & Chat with Sales Rep
               </Link>
             )}
             <button
               type="button"
+              className="portal-btn portal-btn--outline"
               onClick={() => {
                 setSubmittedOrder(null);
                 setSelectedItems([]);
                 setTitle('');
                 setNotes('');
               }}
-              className="portal-btn portal-btn--secondary"
             >
-              <Plus size={16} /> Submit Another Requirement
+              <Plus size={16} /> Submit Another Brief
             </button>
-            <Link to="/portal/dashboard" className="portal-btn portal-btn--outline" style={{ textDecoration: 'none' }}>
-              Go to Dashboard
+            <Link to="/portal/dashboard" className="portal-btn portal-btn--ghost">
+              Return to Dashboard
             </Link>
           </div>
         </div>
@@ -262,316 +489,365 @@ export default function PortalNewRequirement() {
   }
 
   return (
-    <div className="portal-new-req">
-      <h1>New Requirement</h1>
-      <p className="portal-new-req__subtitle">Select products from our catalog and submit your requirement. A sales representative will be assigned to help you.</p>
-
-      {error && <div className="portal-alert portal-alert--danger">{error}</div>}
-
-      <form onSubmit={handleSubmit} className="portal-new-req__form">
-        {/* Title & Notes */}
-        <div className="portal-form-group">
-          <label>Requirement Title *</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g., Q3 IT Infrastructure Refresh"
-            className="portal-input"
-          />
-        </div>
-
-        <div className="portal-form-group">
-          <label>Notes / Special Instructions</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Any specific requirements, delivery timeline, etc."
-            className="portal-textarea"
-            rows={3}
-          />
-        </div>
-
-        {/* Product Catalog */}
-        <div className="portal-catalog">
-          <h2>Product Catalog</h2>
-          <div className="portal-catalog__filters">
-            <div className="portal-search">
-              <Search size={16} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search products..."
-              />
-            </div>
-            <div className="portal-category-tabs">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  type="button"
-                  className={`portal-cat-tab ${activeCategory === cat ? 'active' : ''}`}
-                  onClick={() => setActiveCategory(cat)}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
+    <div className="portal-new-req-v2">
+      {/* Executive Hero Banner */}
+      <div className="portal-new-req-hero">
+        <div className="portal-new-req-hero__left">
+          <div className="portal-new-req-hero__icon-box">
+            <Layers size={24} />
           </div>
-
-          <div className="portal-catalog__grid">
-            {loadingProducts ? (
-              <div style={{ padding: '32px', textAlign: 'center', color: '#666', gridColumn: '1 / -1' }}>
-                <div className="spinner" style={{ margin: '0 auto 12px' }} />
-                <p>Loading available catalog products...</p>
-              </div>
-            ) : loadError ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: '#dc2626', gridColumn: '1 / -1' }}>
-                <p style={{ marginBottom: '10px' }}>{loadError}</p>
-                <button type="button" className="portal-btn portal-btn--sm" onClick={fetchProducts}>
-                  Retry Loading
-                </button>
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div style={{ padding: '28px', textAlign: 'center', color: '#888', gridColumn: '1 / -1' }}>
-                No products found matching "{searchQuery}"
-              </div>
-            ) : (
-              filteredProducts.map(product => {
-                const selected = selectedItems.find(i => i.productId === product.id);
-                return (
-                  <div key={product.id} className={`portal-product-card ${selected ? 'portal-product-card--selected' : ''}`}>
-                    <div className="portal-product-card__info">
-                      <Package size={16} />
-                      <div>
-                        <h4>{product.name}</h4>
-                        <span className="portal-product-card__category">{product.category}</span>
-                        {product.description && <p className="portal-product-card__desc">{product.description}</p>}
-                      </div>
-                    </div>
-                    {selected ? (
-                      <div className="portal-product-card__qty">
-                        <button type="button" onClick={() => updateQty(product.id, selected.quantity - 1)}>
-                          <Minus size={14} />
-                        </button>
-                        <span>{selected.quantity}</span>
-                        <button type="button" onClick={() => updateQty(product.id, selected.quantity + 1)}>
-                          <Plus size={14} />
-                        </button>
-                        <button type="button" className="portal-product-card__remove" onClick={() => removeItem(product.id)}>
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button type="button" className="portal-btn portal-btn--sm" onClick={() => addItem(product)}>
-                        <Plus size={14} /> Add
-                      </button>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Selected Items Summary */}
-        {selectedItems.length > 0 && (
-          <div className="portal-selected-summary">
-            <h3>Selected Items ({selectedItems.length})</h3>
-            <div className="portal-selected-list">
-              {selectedItems.map(item => (
-                <div key={item.productId} className="portal-selected-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Package size={16} color="#0F2C59" />
-                    <div>
-                      <strong style={{ fontSize: '0.92rem', color: '#0f172a' }}>{item.name}</strong>
-                      <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '8px' }}>({item.category})</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid #cbd5e1', borderRadius: '6px', background: '#f8fafc', overflow: 'hidden' }}>
-                      <button
-                        type="button"
-                        style={{ border: 'none', background: 'transparent', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#475569' }}
-                        onClick={() => updateQty(item.productId, item.quantity - 1)}
-                        title="Decrease quantity"
-                      >
-                        <Minus size={13} />
-                      </button>
-                      <input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateQty(item.productId, Math.max(0, parseInt(e.target.value) || 0))}
-                        style={{ width: '44px', border: 'none', textAlign: 'center', fontWeight: 700, fontSize: '0.85rem', color: '#0f172a', background: 'transparent' }}
-                      />
-                      <button
-                        type="button"
-                        style={{ border: 'none', background: 'transparent', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#475569' }}
-                        onClick={() => updateQty(item.productId, item.quantity + 1)}
-                        title="Increase quantity"
-                      >
-                        <Plus size={13} />
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeItem(item.productId)}
-                      style={{ border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
-                      title="Remove item"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Model 1: AI Recommended Complementary Add-ons */}
-        {upsellRecs.length > 0 && (
-          <div style={{
-            margin: '24px 0',
-            padding: '20px 22px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, rgba(15, 44, 89, 0.04) 0%, rgba(15, 44, 89, 0.01) 100%)',
-            border: '1.5px solid #cbd5e1',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={20} color="#0F2C59" />
-                <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0F2C59', fontWeight: 700 }}>
-                  Frequently Bought Together (Recommended Complementary Add-ons)
-                </h3>
-              </div>
-              <span style={{ fontSize: '0.75rem', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                Model 1 AI Engine
+          <div>
+            <div className="portal-new-req-hero__chip-row">
+              <span className="portal-hero-chip">
+                <ShieldCheck size={13} /> {customer.tier || 'GOLD'} Account Privileges
+              </span>
+              <span className="portal-hero-chip emerald">
+                <Clock size={13} /> Priority Response SLA &lt; 2h
               </span>
             </div>
-            <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0 0 16px 0' }}>
-              AI Market Basket analysis identified these items as high-value additions. Choose your desired quantity and add directly to your requirement:
+            <h1>Create Procurement Requirement</h1>
+            <p>
+              Select items from our certified catalog to request custom volume pricing, payment term tailoring, and collaborative negotiations with your sales representative.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '14px' }}>
-              {upsellRecs.map(rec => {
-                const selected = selectedItems.find(i => i.productId === rec.id);
-                const currentRecQty = getRecQty(rec.id);
+          </div>
+        </div>
 
-                return (
-                  <div key={rec.id} style={{
-                    padding: '14px 16px',
-                    borderRadius: '10px',
-                    background: selected ? '#f0fdf4' : '#fff',
-                    border: selected ? '1.5px solid #86efac' : '1px solid #e2e8f0',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                    transition: 'all 0.2s ease'
-                  }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-                        <strong style={{ fontSize: '0.94rem', color: '#0f172a' }}>{rec.name}</strong>
-                        {rec.lift && (
-                          <span style={{ fontSize: '0.7rem', background: '#fef3c7', color: '#92400e', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                            {rec.lift}x affinity
+        <div className="portal-new-req-hero__right">
+          <div className="portal-sla-card">
+            <div className="portal-sla-card__title">
+              <Clock size={14} color="#059669" />
+              <span>Fast-Track SLA Routing</span>
+            </div>
+            <div className="portal-sla-steps">
+              <div className="portal-sla-step active">
+                <span className="step-num">1</span>
+                <span>Select Items</span>
+              </div>
+              <div className="portal-sla-divider" />
+              <div className="portal-sla-step active">
+                <span className="step-num">2</span>
+                <span>AI Pricing</span>
+              </div>
+              <div className="portal-sla-divider" />
+              <div className="portal-sla-step">
+                <span className="step-num">3</span>
+                <span>Official Quote</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="portal-error-alert">
+          <Info size={16} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* 2-Column Main Workspace */}
+      <form onSubmit={handleSubmit} className="portal-req-builder-layout">
+        {/* LEFT COLUMN: Metadata & Product Catalog */}
+        <div className="portal-req-builder-main">
+          {/* Requirement Specifications Card */}
+          <div className="portal-form-card">
+            <div className="portal-form-card__header">
+              <Tag size={18} color="#0F2C59" />
+              <div>
+                <h3>Requirement Specifications</h3>
+                <p>Provide a project identifier and custom procurement terms</p>
+              </div>
+            </div>
+
+            <div className="portal-form-group">
+              <label>Requirement Title <span className="required">*</span></label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., Q3 IT Infrastructure & Staff Equipment Refresh"
+                className="portal-input-v2"
+              />
+            </div>
+
+            <div className="portal-form-group">
+              <label>Procurement Notes / Special Instructions</label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Specify target delivery schedule, preferred billing cycle, packaging guidelines, etc."
+                className="portal-textarea-v2"
+                rows={3}
+              />
+              <div className="portal-tag-suggestions">
+                <span className="tag-label">Quick tags:</span>
+                <button type="button" onClick={() => appendNoteTag('Urgent Dispatch (under 48h)')}>
+                  + Urgent Dispatch
+                </button>
+                <button type="button" onClick={() => appendNoteTag('Target Volume Discount: 15%')}>
+                  + 15% Volume Discount
+                </button>
+                <button type="button" onClick={() => appendNoteTag('Net 30 Payment Terms')}>
+                  + Net 30 Terms
+                </button>
+                <button type="button" onClick={() => appendNoteTag('Custom Corporate Branding')}>
+                  + Corporate Branding
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Product Catalog Card */}
+          <div className="portal-catalog-card">
+            <div className="portal-catalog-card__header">
+              <div className="portal-catalog-card__title">
+                <Package size={20} color="#0F2C59" />
+                <div>
+                  <h3>Select Catalog Items</h3>
+                  <p>Browse certified enterprise products eligible for volume discount brackets</p>
+                </div>
+              </div>
+              <span className="portal-catalog-count">
+                {filteredProducts.length} Product{filteredProducts.length !== 1 ? 's' : ''} Available
+              </span>
+            </div>
+
+            {/* Catalog Filters Bar */}
+            <div className="portal-catalog-controls">
+              <div className="portal-search-v2">
+                <Search size={16} />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search catalog products by name, category, or specs..."
+                />
+                {searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery('')} className="clear-btn">
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <div className="portal-cat-pills">
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`portal-cat-pill ${activeCategory === cat ? 'active' : ''}`}
+                    onClick={() => setActiveCategory(cat)}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Product Cards Grid */}
+            <div className="portal-products-grid-v2">
+              {loadingProducts ? (
+                <div className="portal-catalog-loading">
+                  <div className="spinner" />
+                  <p>Loading enterprise product catalog...</p>
+                </div>
+              ) : loadError ? (
+                <div className="portal-catalog-error">
+                  <p>{loadError}</p>
+                  <button type="button" className="portal-btn portal-btn--sm portal-btn--outline" onClick={fetchProducts}>
+                    Retry Catalog
+                  </button>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="portal-catalog-empty">
+                  <Package size={36} color="#94a3b8" />
+                  <p>No products match "{searchQuery}"</p>
+                  <button type="button" className="portal-btn portal-btn--sm portal-btn--outline" onClick={() => { setSearchQuery(''); setActiveCategory('ALL'); }}>
+                    Clear Search
+                  </button>
+                </div>
+              ) : (
+                filteredProducts.map(product => {
+                  const selected = selectedItems.find(i => i.productId === product.id);
+                  const ProductIcon = getProductIcon(product);
+                  const catStyle = getCategoryColor(product.category);
+
+                  return (
+                    <div 
+                      key={product.id} 
+                      className={`portal-product-card-v2 ${selected ? 'is-selected' : ''}`}
+                    >
+                      <div className="portal-product-card-v2__top">
+                        <span 
+                          className="portal-cat-badge"
+                          style={{ background: catStyle.bg, color: catStyle.text, border: `1px solid ${catStyle.border}` }}
+                        >
+                          {product.category || 'Standard'}
+                        </span>
+                        {selected && (
+                          <span className="portal-added-indicator">
+                            <Check size={12} /> Added
                           </span>
                         )}
                       </div>
-                      <div style={{ fontSize: '0.78rem', color: '#0284c7', marginTop: '4px' }}>{rec.reason}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-                        Base: ₹{Number(rec.basePrice || 0).toLocaleString('en-IN')}
+
+                      <div className="portal-product-card-v2__hero">
+                        <div className="portal-product-avatar">
+                          <ProductIcon size={24} />
+                        </div>
+                        <div>
+                          <h4 className="portal-product-name">{product.name}</h4>
+                          <p className="portal-product-desc">
+                            {product.description || 'Enterprise grade product with volume discount eligibility'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '4px' }}>
-                        {rec.category}
-                      </span>
+                      <div className="portal-product-card-v2__footer">
+                        <div className="portal-product-eligibility">
+                          <span className="dot" />
+                          <span>Volume Discount Eligible</span>
+                        </div>
 
-                      {selected ? (
-                        /* Already Added State: Show Added Badge & Stepper to Increase/Decrease */
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '0.74rem', color: '#16a34a', fontWeight: 600 }}>
-                            Added:
-                          </span>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', background: '#fff', border: '1px solid #86efac', borderRadius: '6px', overflow: 'hidden' }}>
-                            <button
-                              type="button"
-                              style={{ border: 'none', background: 'transparent', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#334155' }}
-                              onClick={() => updateQty(rec.id, selected.quantity - 1)}
+                        {selected ? (
+                          <div className="portal-card-stepper">
+                            <button 
+                              type="button" 
+                              onClick={() => updateQty(product.id, selected.quantity - 1)}
                               title="Decrease quantity"
                             >
                               <Minus size={13} />
                             </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={selected.quantity}
-                              onChange={(e) => updateQty(rec.id, Math.max(0, parseInt(e.target.value) || 0))}
-                              style={{ width: '42px', border: 'none', textAlign: 'center', fontWeight: 700, fontSize: '0.85rem', color: '#0f172a', padding: '2px 0' }}
-                            />
-                            <button
-                              type="button"
-                              style={{ border: 'none', background: 'transparent', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#334155' }}
-                              onClick={() => updateQty(rec.id, selected.quantity + 1)}
+                            <span className="qty">{selected.quantity}</span>
+                            <button 
+                              type="button" 
+                              onClick={() => updateQty(product.id, selected.quantity + 1)}
                               title="Increase quantity"
                             >
                               <Plus size={13} />
                             </button>
-                          </div>
-                        </div>
-                      ) : (
-                        /* Not Yet Added State: Quantity Selector + Add Button */
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '6px', overflow: 'hidden' }}>
-                            <button
-                              type="button"
-                              style={{ border: 'none', background: 'transparent', padding: '4px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}
-                              onClick={() => setRecQty(rec.id, currentRecQty - 1)}
-                              title="Decrease quantity"
+                            <button 
+                              type="button" 
+                              className="remove-btn"
+                              onClick={() => removeItem(product.id)}
+                              title="Remove item"
                             >
-                              <Minus size={12} />
-                            </button>
-                            <input
-                              type="number"
-                              min="1"
-                              value={currentRecQty}
-                              onChange={(e) => setRecQty(rec.id, e.target.value)}
-                              style={{ width: '38px', border: 'none', textAlign: 'center', fontWeight: 600, fontSize: '0.85rem', color: '#0f172a', background: 'transparent', padding: '2px 0' }}
-                            />
-                            <button
-                              type="button"
-                              style={{ border: 'none', background: 'transparent', padding: '4px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#64748b' }}
-                              onClick={() => setRecQty(rec.id, currentRecQty + 1)}
-                              title="Increase quantity"
-                            >
-                              <Plus size={12} />
+                              <X size={13} />
                             </button>
                           </div>
-                          <button
-                            type="button"
-                            className="portal-btn portal-btn--sm"
-                            onClick={() => addItem({ id: rec.id, name: rec.name, category: rec.category }, currentRecQty)}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        ) : (
+                          <button 
+                            type="button" 
+                            className="portal-add-item-btn"
+                            onClick={() => addItem(product)}
                           >
-                            <Plus size={14} /> Add ({currentRecQty})
+                            <Plus size={14} /> Add to Brief
                           </button>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
-        )}
+        </div>
 
-        <button type="submit" className="portal-btn portal-btn--primary portal-btn--lg" disabled={submitting}>
-          <Send size={16} />
-          {submitting ? 'Submitting...' : 'Submit Requirement'}
-        </button>
+        {/* RIGHT COLUMN: Live Animated Analytics & Sticky Summary */}
+        <div className="portal-req-builder-sidebar">
+          {/* Animated Volume Discount Intelligence Graph */}
+          <VolumeDiscountGraph totalUnits={totalUnits} />
+
+          {/* Animated Category Composition Donut */}
+          <CategoryDonutGraph selectedItems={selectedItems} />
+
+          {/* Live Requirement Summary Card */}
+          <div className="portal-summary-card">
+            <div className="portal-summary-card__header">
+              <div className="portal-summary-card__title">
+                <ShoppingCart size={18} color="#0F2C59" />
+                <span>Selected Line Items</span>
+              </div>
+              <span className="portal-summary-card__badge">
+                {selectedItems.length} Item{selectedItems.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {selectedItems.length === 0 ? (
+              <div className="portal-summary-empty">
+                <Package size={32} color="#94a3b8" />
+                <p>No products selected yet</p>
+                <span>Select products from the catalog to build your requirement brief</span>
+              </div>
+            ) : (
+              <div className="portal-summary-items-list">
+                {selectedItems.map(item => (
+                  <div key={item.productId} className="portal-summary-item-row">
+                    <div className="portal-summary-item-row__info">
+                      <strong>{item.name}</strong>
+                      <span className="cat">{item.category}</span>
+                    </div>
+
+                    <div className="portal-summary-item-row__stepper">
+                      <button 
+                        type="button" 
+                        onClick={() => updateQty(item.productId, item.quantity - 1)}
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="val">{item.quantity}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => updateQty(item.productId, item.quantity + 1)}
+                      >
+                        <Plus size={12} />
+                      </button>
+                      <button 
+                        type="button" 
+                        className="del"
+                        onClick={() => removeItem(item.productId)}
+                        title="Remove"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Total Units Tally */}
+            <div className="portal-summary-tally">
+              <div className="tally-row">
+                <span>Total Quantity:</span>
+                <strong>{totalUnits} Units</strong>
+              </div>
+              <div className="tally-row highlight">
+                <span>Pricing Mode:</span>
+                <strong style={{ color: '#059669' }}>Custom Volume Calculation</strong>
+              </div>
+            </div>
+
+            {/* Submit Action */}
+            <button
+              type="submit"
+              disabled={submitting || selectedItems.length === 0}
+              className="portal-submit-btn"
+            >
+              {submitting ? (
+                <>
+                  <div className="spinner-sm" /> Submitting to Sales Desk...
+                </>
+              ) : (
+                <>
+                  <Send size={16} /> Submit Requirement Brief
+                </>
+              )}
+            </button>
+            <p className="portal-submit-disclaimer">
+              <ShieldCheck size={12} /> Direct routing to your dedicated account manager under priority SLA.
+            </p>
+          </div>
+        </div>
       </form>
     </div>
   );

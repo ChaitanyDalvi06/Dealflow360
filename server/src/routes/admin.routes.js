@@ -248,8 +248,10 @@ router.delete('/products/:id', ...adminOnly, async (req, res, next) => {
     // Clean up relations first
     await prisma.priceListEntry.deleteMany({ where: { productId: req.params.id } });
     await prisma.stockLevel.deleteMany({ where: { productId: req.params.id } });
+    await prisma.subscriptionPlan.deleteMany({ where: { productId: req.params.id } });
+    await prisma.orderHistory.deleteMany({ where: { productId: req.params.id } });
     await prisma.upsellRule.deleteMany({
-      where: { OR: [{ triggerProductId: req.params.id }, { suggestedProductId: req.params.id }] },
+      where: { OR: [{ sourceProductId: req.params.id }, { targetProductId: req.params.id }] },
     });
 
     await prisma.product.delete({ where: { id: req.params.id } });

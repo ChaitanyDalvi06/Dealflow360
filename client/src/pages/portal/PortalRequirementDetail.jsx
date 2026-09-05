@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { portalApi } from '../../utils/api';
 import ChatPanel from '../../components/ChatPanel';
-import { ArrowLeft, Clock, User, CheckCircle, Package, FileText, Sparkles } from 'lucide-react';
+import { ArrowLeft, Clock, User, CheckCircle, Package, FileText } from 'lucide-react';
 
 const STATUS_CONFIG = {
   NEW: { color: '#3b82f6', bg: '#eff6ff', label: 'New — Awaiting Assignment' },
@@ -14,7 +14,6 @@ const STATUS_CONFIG = {
 export default function PortalRequirementDetail() {
   const { id } = useParams();
   const [requirement, setRequirement] = useState(null);
-  const [upsellRecs, setUpsellRecs] = useState([]);
   const [loading, setLoading] = useState(true);
   const customer = JSON.parse(localStorage.getItem('df360_portal_customer') || '{}');
   const token = localStorage.getItem('df360_portal_token');
@@ -24,12 +23,6 @@ export default function PortalRequirementDetail() {
       try {
         const res = await portalApi.get(`/portal/requirements/${id}`);
         setRequirement(res.data);
-        const pIds = (res.data?.desiredItems || []).map(i => i.productId).filter(Boolean);
-        if (pIds.length > 0) {
-          portalApi.post('/portal/upsell-recommendations', { productIds: pIds })
-            .then(recRes => setUpsellRecs(recRes.data || []))
-            .catch(e => console.error('Failed to load upsell recs:', e));
-        }
       } catch (err) {
         console.error('Failed to load requirement:', err);
       } finally {
@@ -106,49 +99,45 @@ export default function PortalRequirementDetail() {
             </div>
           </div>
 
-          {/* Model 1: Complementary Upsell Recommendations (Buyer Only) */}
-          {upsellRecs.length > 0 && (
-            <div style={{ marginTop: '1.25rem', background: '#f8fafc', padding: '1.1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                  <Sparkles size={16} color="#d97706" /> Recommended Complementary Items (Model 1)
-                </h3>
-                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Frequently added with your items</span>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem' }}>
-                {upsellRecs.map(rec => (
-                  <div key={rec.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.75rem', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#0f172a' }}>{rec.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
-                      {rec.category} • ₹{Number(rec.basePrice || 0).toLocaleString('en-IN')}
-                    </div>
-                    {rec.lift && (
-                      <span style={{ display: 'inline-block', fontSize: '0.7rem', padding: '2px 6px', background: '#fef3c7', color: '#92400e', borderRadius: '4px', marginTop: '6px', fontWeight: 600 }}>
-                        {rec.lift}x affinity
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Linked Quotations */}
           {requirement.quotations && requirement.quotations.length > 0 && (
             <div className="portal-req-detail__quotations">
-              <h3>Quotations</h3>
+              <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Official Quotations ({requirement.quotations.length})</span>
+                <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600 }}>Active Commercial Terms</span>
+              </h3>
               {requirement.quotations.map(q => (
                 <div key={q.id} className="portal-quotation-card">
                   <div className="portal-quotation-card__header">
-                    <span>Quotation</span>
-                    <span className="portal-quotation-card__status">{q.status}</span>
+                    <div>
+                      <strong style={{ fontSize: '0.94rem', color: '#0F2C59' }}>Quotation #{q.id.slice(-6).toUpperCase()}</strong>
+                      {q.orderTotal && (
+                        <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 700, color: '#059669', fontSize: '0.9rem', marginTop: '2px' }}>
+                          ₹{Number(q.orderTotal).toLocaleString('en-IN')}
+                        </div>
+                      )}
+                    </div>
+                    <span className="portal-quotation-card__status" style={{ fontWeight: 700 }}>
+                      {q.status}
+                    </span>
                   </div>
                   {q.lines && q.lines.map(line => (
                     <div key={line.id} className="portal-quotation-line">
                       <span>{line.product?.name || 'Product'}</span>
-                      <span>×{line.quantity}</span>
+                      <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600 }}>×{line.quantity}</span>
                     </div>
                   ))}
+                  <div style={{ marginTop: '0.85rem', paddingTop: '0.65rem', borderTop: '1px solid rgba(15, 44, 89, 0.06)', display: 'flex', justifyContent: 'flex-end' }}>
+                    <Link
+                      to={`/portal/quote/${q.id}`}
+                      className="portal-btn portal-btn--sm portal-btn--primary"
+                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <span>Review & E-Sign Quote</span>
+                      <ArrowLeft size={13} style={{ transform: 'rotate(180deg)' }} />
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>

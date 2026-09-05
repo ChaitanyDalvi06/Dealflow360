@@ -49,9 +49,9 @@ function getMenuForRole(role) {
     case 'FINANCE':
       return [
         {
-          title: 'FINANCIAL CONTROLS',
+          title: 'DEAL EXECUTION',
           items: [
-            { path: '/approvals', label: 'Financial Approvals', icon: CheckSquare, badge: 'High Risk' },
+            { path: '/finance/deals', label: 'Authorized Deals', icon: ShieldCheck, badge: 'Execute' },
             { path: '/billing', label: 'Invoices & Billing', icon: CreditCard },
             { path: '/warehouse', label: 'Warehouses & Splits', icon: Warehouse },
             { path: '/billing', label: 'Subscriptions', icon: RotateCcw },
@@ -72,9 +72,7 @@ function getMenuForRole(role) {
         {
           title: 'ADMINISTRATION',
           items: [
-            { path: '/admin', label: 'System Settings & Limits', icon: Settings },
-            { path: '/admin?tab=USERS', label: 'User Management', icon: UserCog },
-            { path: '/admin?tab=PRODUCTS', label: 'Products & Price Lists', icon: Package },
+            { path: '/admin', label: 'Products & Price Lists', icon: Package },
           ]
         },
         {
@@ -97,7 +95,7 @@ function getHomePathForRole(role) {
   switch (role) {
     case 'SALES_REP': return '/workspace';
     case 'SALES_MANAGER': return '/approvals';
-    case 'FINANCE': return '/approvals';
+    case 'FINANCE': return '/finance/deals';
     case 'ADMIN': return '/admin';
     default: return '/dashboard';
   }
@@ -111,23 +109,26 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      {/* Brand Header */}
-      <Link to={homePath} className="sidebar-brand" style={{ textDecoration: 'none', color: 'inherit' }}>
-        <div className="brand-icon-wrap">
-          <div className="brand-inner-circle" />
-        </div>
-        <div className="brand-text">
-          <div className="brand-title">DealFlow<span>360</span></div>
-          <div className="brand-subtext">Smarter Deals. Stronger Growth.</div>
-        </div>
-      </Link>
+      {/* Brand & Workspace Context Header */}
+      <div className="sidebar-header-area">
+        <Link to={homePath} className="sidebar-brand" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="brand-icon-wrap">
+            <div className="brand-inner-circle" />
+          </div>
+          <div className="brand-text">
+            <div className="brand-title">DealFlow<span>360</span></div>
+            <div className="brand-subtext">Smarter Deals. Stronger Growth.</div>
+          </div>
+        </Link>
 
-      {/* Role Badge Indicator */}
-      <div className="sidebar-role-indicator">
-        <span className={`sidebar-role-tag role-tag--${role.toLowerCase().replace('_', '-')}`}>
-          <ShieldCheck size={12} />
-          {role.replace('_', ' ')}
-        </span>
+        {/* Unified Workspace Role Indicator */}
+        <div className="sidebar-workspace-row">
+          <div className={`sidebar-workspace-chip role-chip--${role.toLowerCase().replace('_', '-')}`}>
+            <span className="workspace-chip-dot" />
+            <span className="workspace-chip-title">{role.replace('_', ' ')}</span>
+            <span className="workspace-chip-sub">Workspace</span>
+          </div>
+        </div>
       </div>
 
       {/* Navigation List */}
@@ -138,10 +139,14 @@ export default function Sidebar() {
             <div className="sidebar-items-list">
               {section.items.map((item, iIdx) => {
                 const Icon = item.icon;
+                const isRiskBadge = item.badge && item.badge.toLowerCase().includes('risk');
+                const isActionBadge = item.badge && item.badge.toLowerCase().includes('action');
+
                 return (
                   <NavLink
                     key={iIdx}
                     to={item.path}
+                    end={true}
                     className={({ isActive }) => 
                       `sidebar-nav-item ${isActive ? 'active' : ''}`
                     }
@@ -149,7 +154,11 @@ export default function Sidebar() {
                     <Icon size={18} className="nav-icon" />
                     <span className="nav-label">{item.label}</span>
                     {item.badge !== undefined && (
-                      <span className="nav-badge-pill">{item.badge}</span>
+                      <span className={`nav-badge-pill ${
+                        isRiskBadge ? 'nav-badge-pill--danger' : isActionBadge ? 'nav-badge-pill--warning' : ''
+                      }`}>
+                        {item.badge}
+                      </span>
                     )}
                   </NavLink>
                 );
