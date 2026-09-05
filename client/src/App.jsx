@@ -59,6 +59,7 @@ function AppRoutes() {
       {/* 4. Customer Portal — separate layout, separate auth */}
       <Route path="/portal/login" element={<Navigate to="/" replace />} />
       <Route path="/portal/quotation/:id" element={<PortalQuotePage />} />
+      <Route path="/portal/quote/:token" element={<PortalQuotePage />} />
       <Route element={<PortalProtectedRoute><PortalLayout /></PortalProtectedRoute>}>
         <Route path="/portal/dashboard" element={<PortalDashboard />} />
         <Route path="/portal/new-requirement" element={<PortalNewRequirement />} />

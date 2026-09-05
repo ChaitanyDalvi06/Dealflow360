@@ -19,7 +19,21 @@ export default function ApprovalPage() {
     try {
       setLoading(true);
       const res = await api.get('/approvals/pending');
-      setApprovals(res.data);
+      const pendingList = res.data;
+
+      // Attach Model 2 AI Prediction to each ticket
+      const withPredictions = await Promise.all(
+        pendingList.map(async (approval) => {
+          try {
+            const predRes = await api.post(`/approvals/${approval.quotation.id}/predict-acceptance`);
+            return { ...approval, prediction: predRes.data };
+          } catch {
+            return approval;
+          }
+        })
+      );
+
+      setApprovals(withPredictions);
     } catch (err) {
       console.error('Failed to load approvals:', err);
     } finally {
@@ -156,6 +170,45 @@ export default function ApprovalPage() {
                       `Discount requires ${approval.approverRole === 'FINANCE' ? 'Finance' : 'Sales Manager'} authorization.`}
                   </span>
                 </div>
+
+                {/* AI Buyer Acceptance Predictor for Sales Manager & Finance */}
+                {approval.prediction && (
+                  <div style={{
+                    margin: '12px 0',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0F2C59', fontWeight: 600, fontSize: '0.88rem' }}>
+                        <Sparkles size={16} color="#0F2C59" />
+                        <span>AI Buyer Acceptance Predictor</span>
+                      </div>
+                      <span style={{
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        color: approval.prediction.acceptanceProbability >= 70 ? '#16a34a' : approval.prediction.acceptanceProbability >= 40 ? '#d97706' : '#dc2626'
+                      }}>
+                        {approval.prediction.acceptanceProbability}% Win Chance
+                      </span>
+                    </div>
+                    
+                    <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px' }}>
+                      <div style={{
+                        width: `${approval.prediction.acceptanceProbability}%`,
+                        height: '100%',
+                        background: approval.prediction.acceptanceProbability >= 70 ? '#16a34a' : approval.prediction.acceptanceProbability >= 40 ? '#d97706' : '#dc2626',
+                        transition: 'width 0.4s ease'
+                      }} />
+                    </div>
+
+                    <p style={{ margin: 0, fontSize: '0.84rem', color: '#475569', lineHeight: 1.45 }}>
+                      💡 <strong style={{ color: '#0f172a' }}>Strategic Insight:</strong> {approval.prediction.recommendation}
+                    </p>
+                  </div>
+                )}
 
                 {/* Actions Bar */}
                 <div className="ticket-actions-bar">

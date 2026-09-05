@@ -89,7 +89,29 @@ router.get('/requirements/:id', authenticateCustomer, async (req, res, next) => 
       return res.status(404).json({ error: 'Requirement not found' });
     }
 
-    res.json(requirement);
+    // Enrich desiredItems with friendly product names & categories
+    let enrichedItems = requirement.desiredItems;
+    if (Array.isArray(requirement.desiredItems)) {
+      const pIds = requirement.desiredItems.map(i => i.productId).filter(Boolean);
+      const prods = await prisma.product.findMany({
+        where: { id: { in: pIds } },
+        select: { id: true, name: true, category: true, basePrice: true }
+      });
+      const pMap = {};
+      for (const p of prods) pMap[p.id] = p;
+
+      enrichedItems = requirement.desiredItems.map(i => ({
+        ...i,
+        productName: pMap[i.productId]?.name || i.productId,
+        category: pMap[i.productId]?.category || '',
+        basePrice: pMap[i.productId]?.basePrice || 0
+      }));
+    }
+
+    res.json({
+      ...requirement,
+      desiredItems: enrichedItems
+    });
   } catch (err) {
     next(err);
   }

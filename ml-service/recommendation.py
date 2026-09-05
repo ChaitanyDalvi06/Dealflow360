@@ -119,4 +119,42 @@ def get_recommendations_for_cart(cart_product_ids, top_n=DEFAULT_TOP_N):
                     }
 
     ranked = sorted(candidate_scores.values(), key=lambda x: -x["liftScore"])
+
+    # Fallback for newly introduced products (like newly added items) with no co-purchase history
+    if len(ranked) < top_n:
+        cart_categories = {products_map[c]["category"] for c in cart_set if c in products_map}
+        existing_ids = {r["productId"] for r in ranked} | cart_set
+
+        fallback_candidates = []
+        for p_id, p_info in products_map.items():
+            if p_id in existing_ids:
+                continue
+            if p_info["margin"] < MIN_MARGIN_PCT:
+                continue
+
+            # Prioritize matching/complementary category
+            cat_boost = 1.4 if p_info["category"] in cart_categories else 1.15
+            freq = product_counts.get(p_id, 1) / max(1, total_orders)
+            baseline_lift = round(cat_boost * (1.15 + (freq * 1.8)), 2)
+            if p_info["isPromoted"]:
+                baseline_lift = round(baseline_lift * PROMOTION_BOOST, 2)
+
+            margin_delta = round((p_info["basePrice"] * p_info["margin"]) / 100.0, 2)
+            fallback_candidates.append({
+                "productId": p_id,
+                "productName": p_info["name"],
+                "category": p_info["category"],
+                "basePrice": p_info["basePrice"],
+                "marginDelta": margin_delta,
+                "isPromoted": p_info["isPromoted"],
+                "liftScore": baseline_lift,
+                "source": "ml_category_affinity"
+            })
+
+        fallback_candidates.sort(key=lambda x: (-x["liftScore"], -x["marginDelta"]))
+        for fc in fallback_candidates:
+            if len(ranked) >= top_n:
+                break
+            ranked.append(fc)
+
     return ranked[:top_n]

@@ -35,3 +35,11 @@ Thumbs.db
 .eslintcache
 .cache/
 **/.cache/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+venv/
+**/venv/
+.venv/
+**/env/

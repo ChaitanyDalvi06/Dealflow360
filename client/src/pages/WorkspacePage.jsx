@@ -174,6 +174,7 @@ export default function WorkspacePage() {
       setCalculating(true);
       const res = await api.post('/quotations/calculate-risk', {
         customerId: selectedCustomerId,
+        requirementId: activeRequirement?.id,
         lines: lines.map(l => ({
           productId: l.productId,
           quantity: l.quantity,
@@ -187,7 +188,7 @@ export default function WorkspacePage() {
     } finally {
       setCalculating(false);
     }
-  }, [selectedCustomerId, lines]);
+  }, [selectedCustomerId, lines, activeRequirement]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -785,6 +786,40 @@ export default function WorkspacePage() {
               </p>
             </div>
 
+            {/* Model 2: Buyer Acceptance Likelihood for Sales Rep */}
+            {riskAssessment?.acceptancePrediction && (
+              <div style={{
+                margin: '16px 0',
+                padding: '12px',
+                borderRadius: '8px',
+                background: 'rgba(15, 44, 89, 0.05)',
+                border: '1px solid rgba(15, 44, 89, 0.15)'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0F2C59' }}>
+                    Predicted Buyer Acceptance Rate
+                  </span>
+                  <span style={{
+                    fontSize: '0.9rem',
+                    fontWeight: 700,
+                    color: riskAssessment.acceptancePrediction.acceptanceProbability >= 70 ? '#28a745' : riskAssessment.acceptancePrediction.acceptanceProbability >= 40 ? '#f59e0b' : '#dc3545'
+                  }}>
+                    {riskAssessment.acceptancePrediction.acceptanceProbability}%
+                  </span>
+                </div>
+                <div style={{ width: '100%', height: '5px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${riskAssessment.acceptancePrediction.acceptanceProbability}%`,
+                    height: '100%',
+                    background: riskAssessment.acceptancePrediction.acceptanceProbability >= 70 ? '#28a745' : riskAssessment.acceptancePrediction.acceptanceProbability >= 40 ? '#f59e0b' : '#dc3545'
+                  }} />
+                </div>
+                <p style={{ margin: '6px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
+                  {riskAssessment.acceptancePrediction.recommendation}
+                </p>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="workspace-actions">
               <button 
@@ -808,34 +843,6 @@ export default function WorkspacePage() {
               </button>
             </div>
           </div>
-
-          {/* AI Upsell & Cross-Sell Card */}
-          {upsellRecs.length > 0 && (
-            <div className="card ai-upsell-card">
-              <div className="ai-card-header">
-                <Sparkles size={18} color="#d4af37" />
-                <h4>Smart Upsell Engine</h4>
-              </div>
-              <p className="ai-sub">ML recommended items that increase win rate:</p>
-              <div className="upsell-items-list">
-                {upsellRecs.map((rec, i) => (
-                  <div key={i} className="upsell-item">
-                    <div className="upsell-item-content">
-                      <div className="upsell-item-name">{rec.product?.name || rec.name}</div>
-                      <div className="upsell-reason">{rec.reason || 'Frequently bundled with ERP modules'}</div>
-                      <div className="upsell-price font-mono">{formatCurrency(rec.product?.basePrice || rec.basePrice)}</div>
-                    </div>
-                    <button 
-                      className="btn btn-sm btn-outline-primary"
-                      onClick={() => handleAddProduct(rec.product || rec)}
-                    >
-                      <Plus size={14} /> Add
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Chat Panel (Feature 3) — tied to active requirement */}
           {activeRequirement && (

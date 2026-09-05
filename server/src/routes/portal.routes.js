@@ -4,6 +4,7 @@ import { authenticateCustomer } from '../middleware/auth.js';
 import { computeBlendedRiskScore, recalculateQuotationTotals } from '../services/discount.service.js';
 import { routeForApproval } from '../services/approval.service.js';
 import { createAuditLog } from '../middleware/audit.js';
+import { getUpsellRecommendations } from '../services/ml.service.js';
 
 const router = Router();
 
@@ -149,6 +150,145 @@ router.post('/quotations/:id/confirm', authenticateCustomer, async (req, res, ne
       status: 'CONFIRMED',
       message: 'Quotation confirmed! It will now proceed to fulfillment.',
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── GET PUBLIC QUOTE BY TOKEN ──────────────────────────────
+router.get('/quote/:token', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const quotation = await prisma.quotation.findFirst({
+      where: {
+        OR: [
+          { id: token },
+          { id: { startsWith: token } }
+        ]
+      },
+      include: {
+        customer: true,
+        rep: { select: { id: true, name: true, email: true } },
+        lines: {
+          include: {
+            product: true
+          }
+        },
+        negotiations: { orderBy: { createdAt: 'desc' } }
+      }
+    });
+
+    if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
+
+    let gross = 0;
+    let totalDisc = 0;
+    for (const l of quotation.lines) {
+      const price = Number(l.unitPrice);
+      const qty = Number(l.quantity);
+      const disc = Number(l.discountPct);
+      gross += price * qty;
+      totalDisc += (price * qty * disc) / 100;
+    }
+
+    res.json({
+      ...quotation,
+      quoteNumber: 'Q-' + quotation.id.slice(0, 8).toUpperCase(),
+      totalAmount: Number(quotation.orderTotal) || Math.max(0, gross - totalDisc),
+      totalDiscount: totalDisc,
+      grossAmount: gross
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── UPSELL RECOMMENDATIONS FOR BUYER PORTAL (Model 1) ──────
+router.post(['/upsell-recommendations', '/quote/:token/upsell-recommendations'], async (req, res, next) => {
+  try {
+    const { productIds = [] } = req.body;
+    if (productIds.length === 0) return res.json([]);
+
+    const mlResult = await getUpsellRecommendations(productIds);
+    const recList = Array.isArray(mlResult) ? mlResult : (mlResult.recommendations || []);
+
+    const recommendations = recList.map(rec => ({
+      id: rec.productId || rec.product?.id,
+      name: rec.productName || rec.name || rec.product?.name,
+      basePrice: rec.basePrice || rec.product?.basePrice || 0,
+      category: rec.category || rec.product?.category,
+      lift: rec.liftScore || rec.lift,
+      liftScore: rec.liftScore || rec.lift,
+      marginDelta: rec.marginDelta,
+      reason: (rec.liftScore || rec.lift) ? `Frequently paired with selected items (${rec.liftScore || rec.lift}x affinity)` : 'Popular companion product',
+    }));
+
+    res.json(recommendations);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── SUBMIT COUNTER-DISCOUNT / NEGOTIATION VIA PORTAL TOKEN ─
+router.post('/quote/:token/negotiate', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const { counterDiscountPct, message } = req.body;
+    const quotation = await prisma.quotation.findFirst({
+      where: {
+        OR: [
+          { id: token },
+          { id: { startsWith: token } }
+        ]
+      }
+    });
+    if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
+
+    const event = await prisma.negotiationEvent.create({
+      data: {
+        quotationId: quotation.id,
+        messageText: message || 'Buyer requested counter discount',
+        discountRequestedPct: Number(counterDiscountPct) || 0,
+        senderType: 'customer',
+        outcome: 'pending'
+      }
+    });
+
+    const updated = await prisma.quotation.update({
+      where: { id: quotation.id },
+      data: { status: 'UNDER_NEGOTIATION' },
+      include: {
+        customer: true,
+        rep: { select: { id: true, name: true, email: true } },
+        lines: { include: { product: true } }
+      }
+    });
+
+    res.json({ quotation: updated, event, message: 'Counter-offer submitted successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── SIGN QUOTATION VIA PORTAL TOKEN ────────────────────────
+router.post('/quote/:token/sign', async (req, res, next) => {
+  try {
+    const { token } = req.params;
+    const quotation = await prisma.quotation.findFirst({
+      where: {
+        OR: [
+          { id: token },
+          { id: { startsWith: token } }
+        ]
+      }
+    });
+    if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
+
+    await prisma.quotation.update({
+      where: { id: quotation.id },
+      data: { status: 'CONFIRMED' }
+    });
+
+    res.json({ message: 'Quotation signed and confirmed' });
   } catch (err) {
     next(err);
   }

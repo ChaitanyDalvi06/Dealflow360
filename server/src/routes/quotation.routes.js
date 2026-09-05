@@ -4,7 +4,7 @@ import { authenticate, authorize } from '../middleware/auth.js';
 import { createAuditLog } from '../middleware/audit.js';
 import { computeBlendedRiskScore, recalculateQuotationTotals } from '../services/discount.service.js';
 import { routeForApproval } from '../services/approval.service.js';
-import { getUpsellRecommendations } from '../services/ml.service.js';
+import { getUpsellRecommendations, predictNegotiationAcceptance } from '../services/ml.service.js';
 import { publishEvent, TOPICS } from '../services/event.service.js';
 
 const router = Router();
@@ -59,6 +59,66 @@ router.post('/calculate-risk', authenticate, async (req, res, next) => {
       requiredApprovalLevel = 'LEVEL_2_MANAGER';
     }
 
+    // Model 2: Compute predicted buyer acceptance probability for the Sales Rep
+    let acceptancePrediction = null;
+    try {
+      const { requirementId } = req.body;
+
+      // 1. Fetch live buyer chat messages to run VADER sentiment analysis
+      let liveMessages = [];
+      if (requirementId) {
+        liveMessages = await prisma.message.findMany({
+          where: { requirementId, senderRole: 'CUSTOMER' },
+          orderBy: { createdAt: 'desc' },
+          take: 6,
+        });
+      }
+      if (liveMessages.length === 0 && customerId) {
+        const customerReqs = await prisma.requirement.findMany({
+          where: { customerId },
+          select: { id: true },
+        });
+        const reqIds = customerReqs.map(r => r.id);
+        if (reqIds.length > 0) {
+          liveMessages = await prisma.message.findMany({
+            where: { requirementId: { in: reqIds }, senderRole: 'CUSTOMER' },
+            orderBy: { createdAt: 'desc' },
+            take: 6,
+          });
+        }
+      }
+
+      // Combine buyer's messages into transcript text
+      const buyerTranscript = liveMessages.map(m => m.content).reverse().join('. ');
+
+      // 2. Parse any discount request or churn signal in buyer's text
+      let targetDiscount = effectiveDiscountPct;
+      if (buyerTranscript) {
+        const percentMatch = buyerTranscript.match(/(\d+(?:\.\d+)?)\s*%/);
+        if (percentMatch) {
+          targetDiscount = parseFloat(percentMatch[1]);
+        } else if (/lower.*price|cancel|too\s*much|expensive|budget|nah|cheaper/i.test(buyerTranscript)) {
+          // Buyer explicitly complaining about price / threatening cancellation
+          targetDiscount = Math.max(effectiveDiscountPct + 8, tierLimit + 5);
+        }
+      }
+
+      const discountGap = Math.max(0, targetDiscount - effectiveDiscountPct);
+
+      acceptancePrediction = await predictNegotiationAcceptance({
+        discountRequestedPct: targetDiscount,
+        discountGap: discountGap,
+        customerTier: customer.tier,
+        dealSize: netAmount,
+        negotiationRounds: Math.max(1, liveMessages.length),
+        message: buyerTranscript, // Passes live transcript to VADER NLP in Python!
+        currentDiscount: effectiveDiscountPct
+      });
+    } catch (predErr) {
+      console.warn('Prediction error in calculate-risk:', predErr.message);
+      acceptancePrediction = null;
+    }
+
     res.json({
       grossAmount,
       totalDiscountAmount,
@@ -68,6 +128,7 @@ router.post('/calculate-risk', authenticate, async (req, res, next) => {
       blendedRiskScore,
       riskLevel,
       requiredApprovalLevel,
+      acceptancePrediction, // <-- Model 2 for Sales Rep
     });
   } catch (err) {
     next(err);

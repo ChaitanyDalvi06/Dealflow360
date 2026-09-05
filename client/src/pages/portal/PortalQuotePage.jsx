@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 
 export default function PortalQuotePage() {
-  const { token } = useParams();
+  const { token, id } = useParams();
+  const activeToken = token || id;
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,6 +19,7 @@ export default function PortalQuotePage() {
   const [counterMessage, setCounterMessage] = useState('');
   const [negotiating, setNegotiating] = useState(false);
   const [negotiationSuccess, setNegotiationSuccess] = useState('');
+  const [upsellAddons, setUpsellAddons] = useState([]);
 
   // E-Sign state
   const [showSignModal, setShowSignModal] = useState(false);
@@ -35,10 +37,18 @@ export default function PortalQuotePage() {
     const fetchPortalQuote = async () => {
       try {
         setLoading(true);
-        const res = await api.get(`/portal/quote/${token}`);
+        const res = await api.get(`/portal/quote/${activeToken}`);
         setQuote(res.data);
         if (res.data.customer?.name) {
           setSignerName(res.data.customer.name);
+        }
+
+        // Fetch Model 1 Upsell Add-ons for Buyer
+        const pIds = (res.data.lines || []).map(l => l.productId || l.product?.id).filter(Boolean);
+        if (pIds.length > 0) {
+          api.post(`/portal/quote/${activeToken}/upsell-recommendations`, { productIds: pIds })
+            .then(uRes => setUpsellAddons(uRes.data))
+            .catch(() => setUpsellAddons([]));
         }
       } catch (err) {
         setError(err.response?.data?.error || 'Unable to load quotation. Invalid or expired token.');
@@ -46,17 +56,17 @@ export default function PortalQuotePage() {
         setLoading(false);
       }
     };
-    if (token) {
+    if (activeToken) {
       fetchPortalQuote();
     }
-  }, [token]);
+  }, [activeToken]);
 
   // Handle Counter Offer / Negotiation
   const handleNegotiateSubmit = async (e) => {
     e.preventDefault();
     try {
       setNegotiating(true);
-      const res = await api.post(`/portal/quote/${token}/negotiate`, {
+      const res = await api.post(`/portal/quote/${activeToken}/negotiate`, {
         counterDiscountPct: Number(counterDiscount) || 0,
         message: counterMessage
       });
@@ -113,7 +123,7 @@ export default function PortalQuotePage() {
         ? canvasRef.current.toDataURL()
         : `Signed by: ${signerName}`;
 
-      await api.post(`/portal/quote/${token}/sign`, {
+      await api.post(`/portal/quote/${activeToken}/sign`, {
         signerName,
         signerDesignation,
         signatureData
@@ -122,7 +132,7 @@ export default function PortalQuotePage() {
       setSignSuccess(true);
       setShowSignModal(false);
       // Reload quote
-      const updatedRes = await api.get(`/portal/quote/${token}`);
+      const updatedRes = await api.get(`/portal/quote/${activeToken}`);
       setQuote(updatedRes.data);
     } catch (err) {
       alert('Signing failed: ' + (err.response?.data?.error || err.message));
@@ -272,6 +282,53 @@ export default function PortalQuotePage() {
               </div>
             </div>
           </div>
+
+          {/* Model 1: Enterprise Recommended Add-ons (Buyer UI Only) */}
+          {upsellAddons.length > 0 && (
+            <div style={{
+              margin: '24px 0',
+              padding: '20px',
+              borderRadius: '10px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <Sparkles size={18} color="#0F2C59" />
+                <h4 style={{ margin: 0, color: '#0F2C59', fontSize: '1rem', fontWeight: 600 }}>
+                  Recommended Complementary Items for Your Solution
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 14px 0' }}>
+                Enterprise customers who deployed these items achieved higher adoption and system resilience.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
+                {upsellAddons.map(addon => (
+                  <div key={addon.id} style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>{addon.name}</strong>
+                      <div style={{ fontSize: '0.78rem', color: '#0284c7', marginTop: '3px' }}>{addon.reason}</div>
+                    </div>
+                    <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#0F2C59' }}>
+                        {formatCurrency(addon.basePrice)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px' }}>
+                        Add-on
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Electronic Signature or Actions */}
           {!isConfirmed ? (

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { formatCurrency } from '../utils/formatters';
 import { 
   Sliders, Shield, Tag, Users, CheckCircle, RefreshCw, Save, 
@@ -7,6 +8,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminPage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('PRODUCTS');
   const [products, setProducts] = useState([]);
   const [discountTiers, setDiscountTiers] = useState([]);

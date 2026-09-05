@@ -4,7 +4,7 @@ import { authenticate, authorize } from '../middleware/auth.js';
 
 const router = Router();
 
-const adminOnly = [authenticate, authorize('ADMIN')];
+const adminOnly = [authenticate, authorize('ADMIN', 'SALES_MANAGER')];
 
 // ─── DISCOUNT TIERS ─────────────────────────────────────────
 router.get('/discount-tiers', authenticate, async (req, res, next) => {

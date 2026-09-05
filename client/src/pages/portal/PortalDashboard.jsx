@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { portalApi } from '../../utils/api';
-import { FileText, Clock, CheckCircle, User, AlertCircle, Plus, Package, MessageSquare } from 'lucide-react';
+import { FileText, Clock, CheckCircle, User, AlertCircle, Plus, Package, MessageSquare, Sparkles } from 'lucide-react';
 
 const STATUS_CONFIG = {
   NEW: { color: '#3b82f6', bg: '#eff6ff', icon: Clock, label: 'New' },
@@ -13,6 +13,7 @@ const STATUS_CONFIG = {
 export default function PortalDashboard() {
   const [requirements, setRequirements] = useState([]);
   const [quotations, setQuotations] = useState([]);
+  const [dashboardRecs, setDashboardRecs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [approvedAlert, setApprovedAlert] = useState(null);
   const customer = JSON.parse(localStorage.getItem('df360_portal_customer') || '{}');
@@ -25,6 +26,21 @@ export default function PortalDashboard() {
       ]);
       setRequirements(reqRes.data);
       setQuotations(quotRes.data);
+
+      // Fetch Model 1 Recommendations based on customer's recent orders/requirements
+      const pIds = [];
+      (reqRes.data || []).forEach(r => {
+        if (Array.isArray(r.desiredItems)) {
+          r.desiredItems.forEach(item => {
+            if (item.productId && !pIds.includes(item.productId)) pIds.push(item.productId);
+          });
+        }
+      });
+      if (pIds.length > 0) {
+        portalApi.post('/portal/upsell-recommendations', { productIds: pIds.slice(0, 5) })
+          .then(res => setDashboardRecs(res.data || []))
+          .catch(err => console.error('Failed to load dashboard upsell recs:', err));
+      }
     } catch (err) {
       console.error('Failed to load portal data:', err);
     } finally {
@@ -173,6 +189,46 @@ export default function PortalDashboard() {
           </div>
         )}
       </section>
+      {/* Model 1: Recommended Complementary Products for Buyer */}
+      {dashboardRecs.length > 0 && (
+        <section className="portal-section" style={{ marginTop: '2.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sparkles size={20} color="#0284c7" />
+              <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#0f172a' }}>
+                Recommended Complementary Add-ons (Model 1 Engine)
+              </h2>
+            </div>
+            <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+              Frequently paired with your ordered products
+            </span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+            {dashboardRecs.map(rec => (
+              <div key={rec.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.2rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 2px 4px rgba(0,0,0,0.03)' }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>{rec.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
+                    {rec.category} • ₹{Number(rec.basePrice || 0).toLocaleString('en-IN')}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#0284c7', marginTop: '8px', fontWeight: 500 }}>
+                    {rec.reason || `${rec.lift || rec.liftScore}x lift affinity`}
+                  </div>
+                </div>
+                <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '4px' }}>
+                    {rec.lift || rec.liftScore}x Affinity
+                  </span>
+                  <Link to="/portal/new-requirement" style={{ fontSize: '0.8rem', color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}>
+                    + Request Add-on
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

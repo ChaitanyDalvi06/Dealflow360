@@ -34,9 +34,12 @@ export function authorize(...roles) {
     if (!req.user) {
       return res.status(401).json({ error: 'Authentication required' });
     }
-    if (!roles.includes(req.user.role)) {
+    const userRole = (req.user.role || '').toUpperCase();
+    const allowed = roles.flat().map(r => String(r).toUpperCase());
+
+    if (!allowed.includes(userRole)) {
       return res.status(403).json({
-        error: 'Insufficient permissions',
+        error: `Insufficient permissions: your current role is "${req.user.role}", but this action requires: [${allowed.join(', ')}].`,
         required: roles,
         current: req.user.role,
       });

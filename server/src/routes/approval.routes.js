@@ -215,25 +215,67 @@ router.post('/:quotationId/predict-acceptance', authenticate, authorize('SALES_M
       where: { id: req.params.quotationId },
       include: {
         customer: true,
+        lines: true,
         negotiations: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
     });
 
     if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
 
-    const latestNegotiation = quotation.negotiations[0];
+    const grossAmount = (quotation.lines || []).reduce((sum, l) => sum + (Number(l.unitPrice) * l.quantity), 0);
+    const netAmount = Number(quotation.orderTotal) || grossAmount;
+    const totalDiscount = Math.max(0, grossAmount - netAmount);
+    const effectiveDiscountPct = grossAmount > 0 ? (totalDiscount / grossAmount) * 100 : 0;
+    const tierLimit = quotation.customer?.tier === 'GOLD' ? 15 : quotation.customer?.tier === 'SILVER' ? 10 : 5;
 
-    const features = {
-      discountRequestedPct: latestNegotiation?.discountRequestedPct ? Number(latestNegotiation.discountRequestedPct) : req.body.discountRequestedPct || 0,
-      discountGap: req.body.discountGap || 0,
-      customerTier: quotation.customer.tier,
-      dealSize: Number(quotation.orderTotal),
-      negotiationRounds: quotation.negotiations.length,
-      sentimentScore: latestNegotiation?.sentimentScore ? Number(latestNegotiation.sentimentScore) : 0,
-      currentDiscount: req.body.currentDiscount || 0,
-    };
+    // Fetch live buyer chat messages to run VADER NLP
+    let liveMessages = [];
+    if (quotation.requirementId) {
+      liveMessages = await prisma.message.findMany({
+        where: { requirementId: quotation.requirementId, senderRole: 'CUSTOMER' },
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      });
+    }
+    if (liveMessages.length === 0 && quotation.customerId) {
+      const customerReqs = await prisma.requirement.findMany({
+        where: { customerId: quotation.customerId },
+        select: { id: true },
+      });
+      const reqIds = customerReqs.map(r => r.id);
+      if (reqIds.length > 0) {
+        liveMessages = await prisma.message.findMany({
+          where: { requirementId: { in: reqIds }, senderRole: 'CUSTOMER' },
+          orderBy: { createdAt: 'desc' },
+          take: 6,
+        });
+      }
+    }
 
-    const prediction = await predictNegotiationAcceptance(features);
+    const buyerTranscript = liveMessages.map(m => m.content).reverse().join('. ');
+
+    let targetDiscount = effectiveDiscountPct;
+    if (buyerTranscript) {
+      const percentMatch = buyerTranscript.match(/(\d+(?:\.\d+)?)\s*%/);
+      if (percentMatch) {
+        targetDiscount = parseFloat(percentMatch[1]);
+      } else if (/lower.*price|cancel|too\s*much|expensive|budget|nah|cheaper/i.test(buyerTranscript)) {
+        targetDiscount = Math.max(effectiveDiscountPct + 8, tierLimit + 5);
+      }
+    }
+
+    const discountGap = Math.max(0, targetDiscount - effectiveDiscountPct);
+
+    const prediction = await predictNegotiationAcceptance({
+      discountRequestedPct: targetDiscount,
+      discountGap: discountGap,
+      customerTier: quotation.customer?.tier || 'SILVER',
+      dealSize: netAmount,
+      negotiationRounds: Math.max(1, liveMessages.length),
+      message: buyerTranscript,
+      currentDiscount: effectiveDiscountPct,
+    });
+
     res.json(prediction);
   } catch (err) {
     next(err);
