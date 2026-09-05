@@ -1,0 +1,2170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DealFlow360 — Self-Governing B2B Sales Operations Platform</title>
+  <meta name="description"
+    content="DealFlow360 is the self-governing sales engine that catches bad discounts, splits warehouses automatically, and predicts negotiation acceptance before reps hit send." />
+
+  <!-- Google Fonts: Inter (body), Space Grotesk (tech display), Instrument Serif (editorial accent) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    /* -------------------------------------------------------------
+       COLOR SYSTEM & DESIGN TOKENS
+       Palette:
+       --bg-primary: #F8F0E5 (Warm off-white)
+       --bg-secondary: #EADBC8 (Secondary warm beige)
+       --accent-tan: #DAC0A3 (Muted tan / accent border)
+       --navy-deep: #0F2C59 (Deep navy / primary dark / text)
+    -------------------------------------------------------------- */
+    :root {
+      --bg-primary: #F8F0E5;
+      --bg-secondary: #EADBC8;
+      --accent-tan: #DAC0A3;
+      --navy-deep: #0F2C59;
+      --navy-dark: #0A1E3D;
+      --navy-surface: #143566;
+      --navy-muted: rgba(15, 44, 89, 0.65);
+      --navy-subtle: rgba(15, 44, 89, 0.08);
+      --navy-border: rgba(15, 44, 89, 0.14);
+      --tan-border: rgba(218, 192, 163, 0.5);
+      --glow-navy: rgba(15, 44, 89, 0.18);
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-display: 'Space Grotesk', -apple-system, sans-serif;
+      --font-serif: 'Instrument Serif', Georgia, serif;
+      --transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 22px;
+      --radius-full: 9999px;
+      --shadow-sm: 0 2px 8px rgba(15, 44, 89, 0.05);
+      --shadow-md: 0 10px 30px rgba(15, 44, 89, 0.08);
+      --shadow-lg: 0 20px 50px rgba(15, 44, 89, 0.12);
+      --shadow-glow: 0 0 28px rgba(15, 44, 89, 0.25);
+    }
+
+    /* -------------------------------------------------------------
+       GLOBAL RESET & TYPOGRAPHY
+    -------------------------------------------------------------- */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      font-size: 16px;
+      background-color: var(--bg-primary);
+      color: var(--navy-deep);
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      font-family: var(--font-body);
+      line-height: 1.65;
+      background-color: var(--bg-primary);
+      color: var(--navy-deep);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Subtle Grain Overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    .headline {
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.08;
+      color: var(--navy-deep);
+    }
+
+    p {
+      color: var(--navy-muted);
+      font-weight: 400;
+      line-height: 1.68;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 1.5rem;
+    }
+
+    .editorial {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+    }
+
+    /* -------------------------------------------------------------
+       MICRO-COMPONENTS & BADGES
+    -------------------------------------------------------------- */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.9rem;
+      border-radius: var(--radius-full);
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--accent-tan);
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--navy-deep);
+    }
+
+    .pill .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background-color: var(--navy-deep);
+      box-shadow: 0 0 0 0 rgba(15, 44, 89, 0.4);
+      animation: pulse 2s infinite cubic-bezier(0.66, 0, 0, 1);
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(15, 44, 89, 0.5);
+      }
+
+      70% {
+        box-shadow: 0 0 0 7px rgba(15, 44, 89, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(15, 44, 89, 0);
+      }
+    }
+
+    /* -------------------------------------------------------------
+       BUTTONS WITH HOVER LIFT & GLOW
+    -------------------------------------------------------------- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.45rem;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background-color: var(--navy-deep);
+      color: var(--bg-primary);
+      box-shadow: 0 4px 14px rgba(15, 44, 89, 0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(15, 44, 89, 0.35);
+      background-color: var(--navy-dark);
+    }
+
+    .btn-ghost {
+      background-color: transparent;
+      color: var(--navy-deep);
+      border: 1px solid var(--navy-border);
+    }
+
+    .btn-ghost:hover {
+      background-color: var(--bg-secondary);
+      border-color: var(--accent-tan);
+      transform: translateY(-2px);
+    }
+
+    .btn-light {
+      background-color: var(--bg-primary);
+      color: var(--navy-deep);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-light:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(248, 240, 229, 0.35);
+      background-color: #FFFFFF;
+    }
+
+    .btn-sm {
+      padding: 0.45rem 0.95rem;
+      font-size: 0.82rem;
+    }
+
+    .btn-lg {
+      padding: 0.95rem 2rem;
+      font-size: 1.05rem;
+    }
+
+    /* -------------------------------------------------------------
+       SCROLL-TRIGGERED FADE-IN ANIMATIONS
+    -------------------------------------------------------------- */
+    .fade-in {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: opacity, transform;
+    }
+
+    .fade-in.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .stagger-1 {
+      transition-delay: 0.1s;
+    }
+
+    .stagger-2 {
+      transition-delay: 0.2s;
+    }
+
+    .stagger-3 {
+      transition-delay: 0.3s;
+    }
+
+    .stagger-4 {
+      transition-delay: 0.4s;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 1: STICKY NAVIGATION BAR
+    -------------------------------------------------------------- */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      padding: 1.25rem 0;
+      transition: background-color 0.3s ease, border-color 0.3s ease, padding 0.3s ease, backdrop-filter 0.3s ease;
+      background-color: transparent;
+      border-bottom: 1px solid rgba(15, 44, 89, 0.08);
+    }
+
+    .navbar.scrolled {
+      background-color: rgba(248, 240, 229, 0.92);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(15, 44, 89, 0.14);
+      padding: 0.85rem 0;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .nav-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.28rem;
+      letter-spacing: -0.03em;
+      color: var(--navy-deep);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .logo .logo-dot {
+      width: 7px;
+      height: 7px;
+      background-color: var(--navy-deep);
+      border-radius: 50%;
+      display: inline-block;
+      margin-top: 2px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-link {
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--navy-muted);
+    }
+
+    .nav-link:hover {
+      color: var(--navy-deep);
+    }
+
+    .nav-cta-group {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--navy-deep);
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 2: HERO SECTION
+    -------------------------------------------------------------- */
+    .hero-section {
+      padding: 7.5rem 0 2.5rem;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 20%, rgba(234, 219, 200, 0.6) 0%, rgba(248, 240, 229, 0) 70%);
+    }
+
+    .hero-content {
+      text-align: center;
+      max-width: 880px;
+      margin: 0 auto;
+    }
+
+    .hero-eyebrow {
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-headline {
+      font-size: clamp(2.4rem, 5.5vw, 4.8rem);
+      letter-spacing: -0.04em;
+      margin-bottom: 1.5rem;
+      font-weight: 700;
+    }
+
+    .hero-headline span.gradient-text {
+      background: linear-gradient(135deg, var(--navy-deep) 40%, rgba(15, 44, 89, 0.75));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subheadline {
+      font-size: clamp(1.05rem, 1.8vw, 1.28rem);
+      max-width: 680px;
+      margin: 0 auto 2rem;
+      color: var(--navy-muted);
+      font-weight: 400;
+    }
+
+    .hero-cta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2.2rem;
+      flex-wrap: wrap;
+    }
+
+    .social-proof-bar {
+      border-top: 1px solid var(--tan-border);
+      padding-top: 1.5rem;
+      max-width: 620px;
+      margin: 0 auto;
+    }
+
+    .social-proof-text {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      font-weight: 600;
+      color: rgba(15, 44, 89, 0.55);
+      margin-bottom: 0;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 3: PROBLEM SECTION ("The old way is broken")
+    -------------------------------------------------------------- */
+    .problem-section {
+      padding: 3.5rem 0 4.5rem;
+      background-color: var(--bg-primary);
+      position: relative;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 650px;
+      margin: 0 auto 2.5rem;
+    }
+
+    .section-eyebrow {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      color: var(--navy-deep);
+      margin-bottom: 0.6rem;
+      opacity: 0.7;
+    }
+
+    .section-title {
+      font-size: clamp(1.85rem, 3.2vw, 2.75rem);
+      margin-bottom: 0.8rem;
+    }
+
+    .pain-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.5rem;
+    }
+
+    .pain-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--accent-tan);
+      border-radius: var(--radius-md);
+      padding: 2.2rem 1.8rem;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .pain-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--navy-deep);
+    }
+
+    .pain-stat {
+      font-family: var(--font-display);
+      font-size: 2.7rem;
+      font-weight: 700;
+      color: var(--navy-deep);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 0.75rem;
+    }
+
+    .pain-desc {
+      font-size: 1rem;
+      color: var(--navy-deep);
+      font-weight: 500;
+      line-height: 1.45;
+    }
+
+    .pain-sub {
+      font-size: 0.85rem;
+      color: var(--navy-muted);
+      margin-top: 0.5rem;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 4: SOLUTION & INTERACTIVE PRODUCT OVERVIEW FRAME
+    -------------------------------------------------------------- */
+    .product-section {
+      padding: 6.5rem 0 7.5rem;
+      background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(234, 219, 200, 0.3) 100%);
+    }
+
+    .mockup-wrapper {
+      max-width: 1080px;
+      margin: 0 auto;
+      border-radius: var(--radius-lg);
+      background-color: var(--navy-dark);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 30px 80px rgba(15, 44, 89, 0.28), 0 0 0 1px rgba(15, 44, 89, 0.1);
+      overflow: hidden;
+      color: #FFFFFF;
+    }
+
+    /* Browser Window Chrome */
+    .mockup-chrome {
+      background-color: rgba(10, 30, 61, 0.95);
+      padding: 0.85rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mockup-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .dot.red {
+      background-color: #FF5F56;
+    }
+
+    .dot.yellow {
+      background-color: #FFBD2E;
+    }
+
+    .dot.green {
+      background-color: #27C93F;
+    }
+
+    .mockup-tabs {
+      display: flex;
+      gap: 0.4rem;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+    }
+
+    .mockup-tab-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      padding: 0.35rem 0.85rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: var(--font-display);
+    }
+
+    .mockup-tab-btn.active,
+    .mockup-tab-btn:hover {
+      color: #FFFFFF;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .mockup-meta {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    /* Inside the Mockup */
+    .mockup-body {
+      padding: 1.8rem;
+      background: #0B2144;
+      min-height: 480px;
+    }
+
+    .app-screen {
+      display: none;
+    }
+
+    .app-screen.active {
+      display: block;
+      animation: screenFade 0.35s ease;
+    }
+
+    @keyframes screenFade {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Screen 1: Interactive Quotation Builder & Risk Score Engine */
+    .quote-app-grid {
+      display: grid;
+      grid-template-columns: 1.8fr 1.2fr;
+      gap: 1.5rem;
+    }
+
+    .app-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-md);
+      padding: 1.4rem;
+    }
+
+    .app-card-title {
+      font-size: 0.88rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--accent-tan);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-display);
+    }
+
+    .quote-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    .quote-table th {
+      text-align: left;
+      padding-bottom: 0.75rem;
+      color: rgba(255, 255, 255, 0.5);
+      font-weight: 500;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .quote-table td {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .tag-blue {
+      background: rgba(56, 189, 248, 0.15);
+      color: #38BDF8;
+    }
+
+    .tag-purple {
+      background: rgba(192, 132, 252, 0.15);
+      color: #C084FC;
+    }
+
+    .tag-green {
+      background: rgba(74, 222, 128, 0.15);
+      color: #4ADE80;
+    }
+
+    .tag-amber {
+      background: rgba(251, 191, 36, 0.15);
+      color: #FBBF24;
+    }
+
+    /* Interactive Discount Slider */
+    .slider-box {
+      background: rgba(0, 0, 0, 0.25);
+      padding: 1rem;
+      border-radius: var(--radius-sm);
+      margin-top: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .range-input {
+      width: 100%;
+      accent-color: #DAC0A3;
+      cursor: pointer;
+    }
+
+    /* Risk Score Gauge */
+    .risk-gauge-box {
+      text-align: center;
+      padding: 1.2rem;
+      border-radius: var(--radius-md);
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 1rem;
+    }
+
+    .risk-score-value {
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: #4ADE80;
+      transition: color 0.3s ease;
+    }
+
+    .approval-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(74, 222, 128, 0.12);
+      color: #4ADE80;
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      margin-top: 0.5rem;
+      transition: var(--transition);
+    }
+
+    .upsell-suggestion-card {
+      background: rgba(218, 192, 163, 0.08);
+      border: 1px dashed var(--accent-tan);
+      border-radius: var(--radius-sm);
+      padding: 0.85rem;
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 5: FEATURE GRID (THE 6-CARD BENTO GRID - GAPLESS)
+    -------------------------------------------------------------- */
+    .features-section {
+      padding: 6.5rem 0;
+      background-color: var(--bg-primary);
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 1.5rem;
+    }
+
+    .bento-card {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--accent-tan);
+      border-radius: var(--radius-md);
+      padding: 2.2rem;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: var(--transition);
+    }
+
+    .bento-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--navy-deep);
+    }
+
+    /* Grid Span Helpers */
+    .bento-span-8 {
+      grid-column: span 8;
+      background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(218, 192, 163, 0.35) 100%);
+    }
+
+    .bento-span-4 {
+      grid-column: span 4;
+    }
+
+    .bento-span-6 {
+      grid-column: span 6;
+    }
+
+    .bento-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background-color: var(--bg-primary);
+      border: 1px solid var(--accent-tan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.4rem;
+      color: var(--navy-deep);
+    }
+
+    .bento-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke-width: 1.8;
+    }
+
+    .bento-title {
+      font-size: 1.32rem;
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+      letter-spacing: -0.02em;
+    }
+
+    .bento-desc {
+      font-size: 0.92rem;
+      color: var(--navy-muted);
+      line-height: 1.55;
+    }
+
+    /* Micro-UI Widgets for Bento Cards */
+    .bento-micro-widget {
+      margin-top: 1.6rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--accent-tan);
+      border-radius: var(--radius-sm);
+      padding: 1.1rem;
+    }
+
+    .negotiation-widget {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+    }
+
+    .widget-stat-box {
+      border-right: 1px solid var(--tan-border);
+      padding-right: 1rem;
+    }
+
+    .widget-prob {
+      font-family: var(--font-display);
+      font-size: 2.1rem;
+      font-weight: 700;
+      color: var(--navy-deep);
+      line-height: 1;
+    }
+
+    .sentiment-bar-bg {
+      height: 6px;
+      background: rgba(15, 44, 89, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.4rem;
+    }
+
+    .sentiment-bar-fill {
+      height: 100%;
+      width: 84%;
+      background: var(--navy-deep);
+      border-radius: 4px;
+    }
+
+    /* Warehouse Split Visual Route Widget */
+    .warehouse-route-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .warehouse-node {
+      background: var(--bg-secondary);
+      border: 1px solid var(--accent-tan);
+      border-radius: 6px;
+      padding: 0.5rem 0.8rem;
+      flex: 1;
+    }
+
+    .route-arrow {
+      color: var(--navy-muted);
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .sentiment-bar-bg {
+      height: 6px;
+      background: rgba(15, 44, 89, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 0.4rem;
+    }
+
+    .sentiment-bar-fill {
+      height: 100%;
+      width: 84%;
+      background: var(--navy-deep);
+      border-radius: 4px;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 6: HOW IT WORKS (4-STEP TIMELINE)
+    -------------------------------------------------------------- */
+    .workflow-section {
+      padding: 6.5rem 0;
+      background-color: var(--bg-primary);
+      position: relative;
+    }
+
+    .timeline-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      position: relative;
+      margin-top: 3rem;
+    }
+
+    /* Connecting horizontal bar for desktop */
+    .timeline-grid::before {
+      content: "";
+      position: absolute;
+      top: 36px;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: var(--accent-tan);
+      z-index: 1;
+    }
+
+    .timeline-step {
+      position: relative;
+      z-index: 2;
+      background-color: var(--bg-primary);
+      padding: 0 0.5rem;
+    }
+
+    .step-number {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--accent-tan);
+      color: var(--navy-deep);
+      font-family: var(--font-display);
+      font-weight: 700;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.4rem;
+      box-shadow: 0 0 0 6px var(--bg-primary);
+    }
+
+    .step-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    .step-desc {
+      font-size: 0.88rem;
+      color: var(--navy-muted);
+      line-height: 1.5;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 7: "BUILT DIFFERENT" (DIFFERENTIATION MATRIX)
+    -------------------------------------------------------------- */
+    .differentiation-section {
+      padding: 6.5rem 0;
+      background-color: var(--bg-secondary);
+      border-top: 1px solid var(--accent-tan);
+      border-bottom: 1px solid var(--accent-tan);
+    }
+
+    .diff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .diff-statement h2 {
+      font-size: clamp(2.2rem, 3.8vw, 3.2rem);
+      margin-bottom: 1.2rem;
+    }
+
+    .comparison-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+
+    .comparison-row {
+      background-color: var(--bg-primary);
+      border: 1px solid var(--accent-tan);
+      border-radius: var(--radius-md);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      transition: var(--transition);
+    }
+
+    .comparison-row:hover {
+      border-color: var(--navy-deep);
+      transform: translateX(4px);
+    }
+
+    .old-way {
+      font-size: 0.92rem;
+      color: rgba(15, 44, 89, 0.45);
+      text-decoration: line-through;
+      flex: 1;
+    }
+
+    .arrow-divider {
+      color: var(--accent-tan);
+      font-weight: bold;
+    }
+
+    .new-way {
+      font-size: 0.95rem;
+      color: var(--navy-deep);
+      font-weight: 600;
+      flex: 1.2;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .check-icon {
+      color: var(--navy-deep);
+      display: inline-flex;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 8: TESTIMONIAL & SOCIAL PROOF
+    -------------------------------------------------------------- */
+    .testimonial-section {
+      padding: 7rem 0;
+      background-color: var(--bg-primary);
+      text-align: center;
+    }
+
+    .testimonial-container {
+      max-width: 820px;
+      margin: 0 auto;
+    }
+
+    .quote-mark {
+      font-family: var(--font-serif);
+      font-size: 5rem;
+      line-height: 0.5;
+      color: var(--accent-tan);
+      display: block;
+      margin-bottom: 1.5rem;
+    }
+
+    .pull-quote {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: clamp(1.6rem, 2.8vw, 2.3rem);
+      line-height: 1.35;
+      color: var(--navy-deep);
+      margin-bottom: 2rem;
+      letter-spacing: -0.01em;
+    }
+
+    .quote-author {
+      font-family: var(--font-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--navy-deep);
+    }
+
+    .quote-role {
+      font-size: 0.85rem;
+      color: var(--navy-muted);
+      margin-top: 0.2rem;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 9: FINAL HIGH-CONTRAST CTA SECTION
+    -------------------------------------------------------------- */
+    .final-cta-section {
+      padding: 7rem 0;
+      background-color: var(--navy-deep);
+      color: var(--bg-primary);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 950px;
+      height: 650px;
+      background: radial-gradient(ellipse at center,
+        rgba(248, 240, 229, 0.16) 0%,
+        rgba(234, 219, 200, 0.10) 30%,
+        rgba(218, 192, 163, 0.04) 60%,
+        transparent 100%);
+      filter: blur(90px);
+      -webkit-filter: blur(90px);
+      pointer-events: none;
+      border-radius: 50%;
+      transition: opacity 0.4s ease, transform 0.12s ease-out;
+      will-change: left, top;
+    }
+
+    .final-cta-content {
+      position: relative;
+      z-index: 2;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    .final-cta-section h2 {
+      color: var(--bg-primary);
+      font-size: clamp(2.2rem, 4.2vw, 3.6rem);
+      margin-bottom: 1.4rem;
+    }
+
+    .final-cta-section p {
+      color: var(--bg-secondary);
+      opacity: 0.8;
+      font-size: 1.15rem;
+      margin-bottom: 2.4rem;
+    }
+
+    /* -------------------------------------------------------------
+       SECTION 10: MINIMAL FOOTER
+    -------------------------------------------------------------- */
+    .site-footer {
+      background-color: var(--bg-primary);
+      border-top: 1px solid var(--accent-tan);
+      padding: 4.5rem 0 2.5rem;
+      font-size: 0.85rem;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 3rem;
+      margin-bottom: 3.5rem;
+    }
+
+    .footer-brand p {
+      margin-top: 0.8rem;
+      max-width: 280px;
+      font-size: 0.85rem;
+    }
+
+    .footer-col-title {
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--navy-deep);
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .footer-links a {
+      color: var(--navy-muted);
+    }
+
+    .footer-links a:hover {
+      color: var(--navy-deep);
+    }
+
+    .footer-bottom {
+      border-top: 1px solid var(--tan-border);
+      padding-top: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: rgba(15, 44, 89, 0.5);
+      font-size: 0.8rem;
+    }
+
+    /* -------------------------------------------------------------
+       RESPONSIVE BREAKPOINTS (Mobile-First Polish)
+    -------------------------------------------------------------- */
+    @media (max-width: 960px) {
+      .pain-cards-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .quote-app-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .bento-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .bento-span-8,
+      .bento-span-4,
+      .bento-span-6 {
+        grid-column: span 1 !important;
+      }
+
+      .timeline-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+      }
+
+      .timeline-grid::before {
+        display: none;
+      }
+
+      .diff-grid {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .nav-links {
+        display: none;
+      }
+
+      .timeline-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .footer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .comparison-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-cta-row {
+        flex-direction: column;
+        width: 100%;
+      }
+
+      .hero-cta-row .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ============================================================
+       1. STICKY NAV BAR
+  ============================================================= -->
+  <nav class="navbar" id="mainNav">
+    <div class="container nav-container">
+      <a href="#" class="logo" id="navLogo">
+        DealFlow360<span class="logo-dot"></span>
+      </a>
+
+      <ul class="nav-links">
+        <li><a href="#product" class="nav-link">Product</a></li>
+        <li><a href="#features" class="nav-link">Features</a></li>
+        <li><a href="#how-it-works" class="nav-link">How it works</a></li>
+        <li><a href="#comparison" class="nav-link">Why Us</a></li>
+      </ul>
+
+      <div class="nav-cta-group" style="display: flex; align-items: center; gap: 0.75rem;">
+        <a href="/login" onclick="window.top.location.href='/login'; return false;" class="btn btn-ghost btn-sm" style="padding: 0.55rem 1.15rem;">Log In</a>
+        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="navCtaCreateAccount" class="btn btn-primary btn-sm" style="padding: 0.55rem 1.15rem;">Create an Account</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       2. HERO SECTION
+  ============================================================= -->
+  <section class="hero-section" id="hero">
+    <div class="container hero-content">
+
+      <h1 class="hero-headline fade-in stagger-1" style="margin-top: 1rem;">
+        Your sales team is bleeding margin.<br />
+        <span class="editorial">Nobody's watching.</span>
+      </h1>
+
+      <p class="hero-subheadline fade-in stagger-2">
+        DealFlow360 is the self-governing sales engine that catches bad discounts, splits your warehouses, and predicts
+        if your customer will actually say yes before your rep even hits send.
+      </p>
+
+      <div class="hero-cta-row fade-in stagger-3">
+        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="heroCtaSeeAction" class="btn btn-primary btn-lg">See it in action</a>
+        <a href="#how-it-works" class="btn btn-ghost btn-lg">Watch 90s demo</a>
+      </div>
+
+      <div class="social-proof-bar fade-in stagger-4">
+        <div class="social-proof-text">Built for high-velocity B2B teams who are tired of quote chaos</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       3. PROBLEM SECTION ("The old way is broken")
+  ============================================================= -->
+  <section class="problem-section" id="problem">
+    <div class="container">
+
+      <div class="section-header fade-in">
+        <div class="section-eyebrow">The old way is broken</div>
+        <h2 class="section-title">Sales teams don't lose deals. <span class="editorial">They leak them.</span></h2>
+        <p>Traditional CRMs record history after the damage is done. DealFlow360 stops rogue discounting and operational
+          friction in real time.</p>
+      </div>
+
+      <div class="pain-cards-grid">
+
+        <div class="pain-card fade-in stagger-1">
+          <div class="pain-stat">23%</div>
+          <div class="pain-desc">of enterprise discounts go unapproved until it's too late to recover margin.</div>
+          <div class="pain-sub">Reps apply rogue category-level cuts that hide behind high gross order totals.</div>
+        </div>
+
+        <div class="pain-card fade-in stagger-2">
+          <div class="pain-stat">4.2 days</div>
+          <div class="pain-desc">average time a stalled deal sits unnoticed in a rep's pipeline.</div>
+          <div class="pain-sub">Without automated telemetry, deals go cold before managers ever intervene.</div>
+        </div>
+
+        <div class="pain-card fade-in stagger-3">
+          <div class="pain-stat">$0</div>
+          <div class="pain-desc">visibility into whether your customer will actually accept your counter-offer.</div>
+          <div class="pain-sub">Negotiations rely on guesswork instead of sentiment-informed predictive ML.</div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       4. SOLUTION / PRODUCT OVERVIEW (INTERACTIVE BROWSER FRAME)
+  ============================================================= -->
+  <section class="product-section" id="product">
+    <div class="container">
+
+      <div class="section-header fade-in" style="margin-bottom: 2.5rem;">
+        <div class="section-eyebrow">Interactive System Demo</div>
+        <h2 class="section-title">One platform. <span class="editorial">Zero blind spots.</span></h2>
+        <p>From quote assembly to blended risk scoring, dynamic warehouse routing, and instant e-signature execution.
+        </p>
+      </div>
+
+      <!-- Live Mockup Window -->
+      <div class="mockup-wrapper fade-in" id="demo-frame">
+        <div class="mockup-chrome">
+          <div class="mockup-dots">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+
+          <!-- Interactive Tab Switcher -->
+          <div class="mockup-tabs">
+            <button class="mockup-tab-btn active" onclick="switchAppTab('quoteBuilder', this)"
+              id="tabBtnBuilder">Quotation Builder</button>
+            <button class="mockup-tab-btn" onclick="switchAppTab('portalView', this)" id="tabBtnPortal">Customer
+              Portal</button>
+            <button class="mockup-tab-btn" onclick="switchAppTab('dealHealth', this)" id="tabBtnHealth">Deal Health
+              Radar</button>
+          </div>
+
+          <div class="mockup-meta">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Live Engine Active
+          </div>
+        </div>
+
+        <div class="mockup-body">
+
+          <!-- TAB 1: Rep Workspace (Interactive Quotation Builder) -->
+          <div class="app-screen active" id="screen-quoteBuilder">
+            <div class="quote-app-grid">
+
+              <!-- Left: Items & Discounts -->
+              <div class="app-card">
+                <div class="app-card-title">
+                  <span>Quote #Q-8492 &mdash; Acme Enterprise</span>
+                  <span class="tag tag-blue">Gold Tier Account</span>
+                </div>
+
+                <table class="quote-table">
+                  <thead>
+                    <tr>
+                      <th>Product Line</th>
+                      <th>Category</th>
+                      <th>Qty</th>
+                      <th>Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style="font-weight: 600;">Enterprise Server Array</td>
+                      <td><span class="tag tag-blue">Hardware (Cap: 15%)</span></td>
+                      <td>2</td>
+                      <td>$24,000</td>
+                    </tr>
+                    <tr>
+                      <td style="font-weight: 600;">Managed Deployment Suite</td>
+                      <td><span class="tag tag-amber">Services (Cap: 10%)</span></td>
+                      <td>1</td>
+                      <td>$8,500</td>
+                    </tr>
+                    <tr id="upsellLine" style="display: none; background: rgba(74, 222, 128, 0.08);">
+                      <td style="font-weight: 600; color: #4ADE80;">+ 24/7 Priority SLA (AI Added)</td>
+                      <td><span class="tag tag-green">Recurring (Cap: 12%)</span></td>
+                      <td>1</td>
+                      <td>$3,600/yr</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <!-- Interactive Discount Slider -->
+                <div class="slider-box">
+                  <div class="slider-header">
+                    <span>Adjust Services Line Discount:</span>
+                    <strong id="discountValueDisplay" style="color: #DAC0A3;">8%</strong>
+                  </div>
+                  <input type="range" min="0" max="25" value="8" class="range-input" id="discountSlider"
+                    oninput="updateDiscountSimulation(this.value)" />
+                  <div
+                    style="display:flex; justify-content:space-between; font-size:0.7rem; color:rgba(255,255,255,0.4); margin-top:4px;">
+                    <span>0% (Standard)</span>
+                    <span>10% (Manager Tier)</span>
+                    <span>25% (Finance Tier)</span>
+                  </div>
+                </div>
+
+                <!-- Live Upsell Trigger -->
+                <div class="upsell-suggestion-card" id="upsellCard">
+                  <div>
+                    <div style="font-size: 0.75rem; color: #DAC0A3; text-transform: uppercase; font-weight: 700;">AI
+                      Upsell Engine (Lift: 2.8x)</div>
+                    <div style="font-size: 0.85rem; font-weight: 600; margin-top: 2px;">24/7 Priority SLA &bull; +$3,600
+                      ARR (+18% Net Margin)</div>
+                  </div>
+                  <button class="btn btn-sm" id="btnToggleUpsell" onclick="toggleUpsellItem()"
+                    style="background: var(--accent-tan); color: var(--navy-deep);">
+                    Add to Quote
+                  </button>
+                </div>
+
+              </div>
+
+              <!-- Right: Real-Time Governance & Routing -->
+              <div class="app-card">
+                <div class="app-card-title">
+                  <span>Governance Telemetry</span>
+                  <span class="tag tag-purple">Redpanda Stream</span>
+                </div>
+
+                <div class="risk-gauge-box">
+                  <div
+                    style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(255,255,255,0.6);">
+                    Blended Risk Score</div>
+                  <div class="risk-score-value" id="riskScoreNumber">0.12</div>
+                  <div class="approval-pill" id="approvalStatusPill">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                      stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span id="approvalText">Auto-Approved (Within Ceilings)</span>
+                  </div>
+                </div>
+
+                <div
+                  style="font-size: 0.82rem; color: rgba(255,255,255,0.7); display: flex; flex-direction: column; gap: 0.6rem;">
+                  <div
+                    style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.35rem;">
+                    <span>Fulfillment Auto-Split:</span>
+                    <strong style="color: #FFF;">Main Warehouse (2) + East (1)</strong>
+                  </div>
+                  <div
+                    style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.35rem;">
+                    <span>Hybrid Billing Schedule:</span>
+                    <strong style="color: #FFF;">$32,500 One-time + $300/mo</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span>E-Sign Status:</span>
+                    <strong style="color: #38BDF8;">Odoo Sign Template Ready</strong>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- TAB 2: Customer Portal View -->
+          <div class="app-screen" id="screen-portalView">
+            <div
+              style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius-md); padding: 1.5rem;">
+              <div
+                style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:1rem;">
+                <div>
+                  <h3 style="color:#FFF; font-size:1.15rem;">Customer Negotiation Room &bull; Acme Enterprise</h3>
+                  <p style="color:rgba(255,255,255,0.5); font-size:0.8rem;">Restricted client view &bull; Living quote
+                    document</p>
+                </div>
+                <span class="tag tag-amber" style="font-size:0.8rem;">Status: Under Negotiation</span>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap: 1.5rem;">
+                <div>
+                  <div style="font-size:0.85rem; color:rgba(255,255,255,0.8); margin-bottom:0.8rem;">Customer
+                    Counter-Discount Request:</div>
+                  <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+                    <input type="text" value="Requested 14% on Deployment Suite" readonly
+                      style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:#FFF; padding:0.5rem 0.8rem; border-radius:6px; flex:1; font-size:0.85rem;" />
+                    <button class="btn btn-primary btn-sm"
+                      style="background: #27C93F; color:#0A1E3D; font-weight:700;">Accept & Sign</button>
+                  </div>
+                  <p style="font-size:0.8rem; color:rgba(255,255,255,0.5);">Note: Any counter beyond 10% on Services
+                    automatically re-routes back to Sales Ops approval before confirmation.</p>
+                </div>
+
+                <div
+                  style="background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:1rem;">
+                  <div
+                    style="font-size:0.75rem; text-transform:uppercase; color:#DAC0A3; font-weight:700; margin-bottom:0.4rem;">
+                    Rep-Only Telemetry (Hidden from Customer)</div>
+                  <div style="font-size:1.8rem; font-family:var(--font-display); font-weight:700; color:#4ADE80;">89%
+                  </div>
+                  <div style="font-size:0.8rem; color:rgba(255,255,255,0.7);">Predicted acceptance rate if countered at
+                    11.5%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: Deal Health Radar -->
+          <div class="app-screen" id="screen-dealHealth">
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+
+              <div
+                style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.25); border-radius:8px; padding:1.2rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span class="tag" style="background:rgba(239,68,68,0.2); color:#F87171;">Stalled Deal Alert</span>
+                  <span style="font-size:0.75rem; color:rgba(255,255,255,0.4);">4.5d Inactive</span>
+                </div>
+                <div style="font-weight:700; color:#FFF; margin-top:0.8rem;">Starlight Inc ($94,000)</div>
+                <p style="font-size:0.78rem; color:rgba(255,255,255,0.6); margin-top:0.3rem;">Quote sent 108 hours ago.
+                  No portal activity recorded.</p>
+                <button class="btn btn-sm"
+                  style="margin-top:0.8rem; background:rgba(255,255,255,0.1); color:#FFF; font-size:0.75rem; width:100%;">Trigger
+                  Manager Nudge</button>
+              </div>
+
+              <div
+                style="background:rgba(251, 191, 36, 0.1); border:1px solid rgba(251, 191, 36, 0.25); border-radius:8px; padding:1.2rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span class="tag tag-amber">Discount Anomaly</span>
+                  <span style="font-size:0.75rem; color:rgba(255,255,255,0.4);">+12% Above Avg</span>
+                </div>
+                <div style="font-weight:700; color:#FFF; margin-top:0.8rem;">Vanguard Retail ($42,000)</div>
+                <p style="font-size:0.78rem; color:rgba(255,255,255,0.6); margin-top:0.3rem;">Rep discount variance
+                  deviates significantly from historical tier baseline.</p>
+                <button class="btn btn-sm"
+                  style="margin-top:0.8rem; background:rgba(255,255,255,0.1); color:#FFF; font-size:0.75rem; width:100%;">View
+                  Audit Trail</button>
+              </div>
+
+              <div
+                style="background:rgba(56, 189, 248, 0.1); border:1px solid rgba(56, 189, 248, 0.25); border-radius:8px; padding:1.2rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span class="tag tag-blue">Backorder Consolidation</span>
+                  <span style="font-size:0.75rem; color:rgba(255,255,255,0.4);">Stock Arrived</span>
+                </div>
+                <div style="font-weight:700; color:#FFF; margin-top:0.8rem;">Horizon Med ($18,500)</div>
+                <p style="font-size:0.78rem; color:rgba(255,255,255,0.6); margin-top:0.3rem;">Stock replenished at East
+                  Depot. Ready for consolidated one-shipment dispatch.</p>
+                <button class="btn btn-sm"
+                  style="margin-top:0.8rem; background:rgba(255,255,255,0.1); color:#FFF; font-size:0.75rem; width:100%;">Consolidate
+                  Split</button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       5. FEATURE GRID (THE 6-CARD BENTO GRID)
+  ============================================================= -->
+  <section class="features-section" id="features">
+    <div class="container">
+
+      <div class="section-header fade-in">
+        <div class="section-eyebrow">Engineered for Revenue Defense</div>
+        <h2 class="section-title">Governed deals. <span class="editorial">Zero margin leak.</span></h2>
+        <p>Six specialized engines work silently behind every quote to protect profit margins and accelerate deal
+          velocity.</p>
+      </div>      <div class="bento-grid">
+
+        <!-- ROW 1 / CARD 1 (Hero - Span 8): Negotiation Acceptance Predictor -->
+        <div class="bento-card bento-span-8 fade-in stagger-1">
+          <div>
+            <div class="bento-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+            </div>
+            <h3 class="bento-title" style="font-size: 1.55rem;">Negotiation acceptance predictor</h3>
+            <p class="bento-desc" style="max-width: 580px;">Our ML model reads the room. Get a live, sentiment-informed %
+              chance your customer accepts before you counter-offer, calibrated against historical close patterns.</p>
+          </div>
+
+          <div class="bento-micro-widget negotiation-widget">
+            <div class="widget-stat-box">
+              <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--navy-muted);">
+                Predicted Win Probability</div>
+              <div class="widget-prob">92.4%</div>
+              <div style="font-size: 0.8rem; color: var(--navy-deep); font-weight: 600; margin-top: 0.3rem;">Optimal
+                Counter: 11.2%</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--navy-muted);">
+                Client Sentiment & Urgency</div>
+              <div class="sentiment-bar-bg">
+                <div class="sentiment-bar-fill"></div>
+              </div>
+              <div
+                style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--navy-muted); margin-top: 0.4rem;">
+                <span>Positive (+0.84)</span>
+                <span>High Urgency Signal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ROW 1 / CARD 2 (Span 4): Blended Risk Scoring -->
+        <div class="bento-card bento-span-4 fade-in stagger-2">
+          <div>
+            <div class="bento-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <h3 class="bento-title">Blended risk scoring</h3>
+            <p class="bento-desc">Catches discount abuse across individual line items and product categories, not just
+              the top-line total.</p>
+          </div>
+
+          <div class="bento-micro-widget" style="display: flex; flex-direction: column; gap: 0.45rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem;">
+              <span>Hardware (15% Cap):</span>
+              <strong style="color: #16A34A;">12% &bull; Safe</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem;">
+              <span>Services (10% Cap):</span>
+              <strong style="color: #DC2626;">18% &bull; Flagged (+8%)</strong>
+            </div>
+            <div style="margin-top: 0.2rem; font-size: 0.72rem; color: var(--navy-muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.04em;">
+              Multi-Tier Routing Triggered
+            </div>
+          </div>
+        </div>
+
+        <!-- ROW 2 / CARD 3 (Span 4): AI Upsell Engine -->
+        <div class="bento-card bento-span-4 fade-in stagger-1">
+          <div>
+            <div class="bento-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+                <polyline points="17 6 23 6 23 12" />
+              </svg>
+            </div>
+            <h3 class="bento-title">AI upsell engine</h3>
+            <p class="bento-desc">Surfaces the exact add-on your customer is statistically likely to buy using
+              association-rule lift mining.</p>
+          </div>
+
+          <div class="bento-micro-widget" style="display: flex; align-items: center; justify-content: space-between;">
+            <div>
+              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-muted); font-weight: 700;">Lift Score: 2.8x</div>
+              <div style="font-weight: 700; font-size: 0.85rem; color: var(--navy-deep);">Priority SLA Bundle</div>
+            </div>
+            <div style="background: var(--bg-secondary); border: 1px solid var(--accent-tan); padding: 0.25rem 0.6rem; border-radius: 4px; font-size: 0.78rem; font-weight: 700; color: #16A34A;">
+              +18% Margin
+            </div>
+          </div>
+        </div>
+
+        <!-- ROW 2 / CARD 4 (Hero - Span 8): Multi-Warehouse Auto-Split -->
+        <div class="bento-card bento-span-8 fade-in stagger-2">
+          <div>
+            <div class="bento-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <rect x="1" y="3" width="15" height="13" />
+                <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
+                <circle cx="5.5" cy="18.5" r="2.5" />
+                <circle cx="18.5" cy="18.5" r="2.5" />
+              </svg>
+            </div>
+            <h3 class="bento-title" style="font-size: 1.55rem;">Multi-warehouse auto-split</h3>
+            <p class="bento-desc" style="max-width: 580px;">Real-time stock logic calculates optimal fulfillment routes with freight-cost minimization and automated backorder consolidation.</p>
+          </div>
+
+          <div class="bento-micro-widget warehouse-route-box">
+            <div class="warehouse-node">
+              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-muted); font-weight: 700;">Origin: Main Depot</div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: var(--navy-deep); margin-top: 2px;">2 Units &bull; Dispatched</div>
+            </div>
+            <div class="route-arrow">+</div>
+            <div class="warehouse-node">
+              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-muted); font-weight: 700;">Origin: East Depot</div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: var(--navy-deep); margin-top: 2px;">1 Unit &bull; Consolidated</div>
+            </div>
+            <div class="warehouse-node" style="background: var(--bg-primary); border-color: var(--navy-deep);">
+              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--navy-deep); font-weight: 700;">Optimization</div>
+              <div style="font-size: 0.88rem; font-weight: 700; color: #16A34A; margin-top: 2px;">1.8x Lower Freight</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ROW 3 / CARD 5 (Span 6): Live Deal Health Radar -->
+        <div class="bento-card bento-span-6 fade-in stagger-1">
+          <div>
+            <div class="bento-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="2" />
+                <path
+                  d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
+              </svg>
+            </div>
+            <h3 class="bento-title">Live deal health radar</h3>
+            <p class="bento-desc">See stalled quotes and delivery promise slippage the second deals go quiet via
+              Redpanda streaming.</p>
+          </div>
+
+          <div class="bento-micro-widget" style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <span class="pulse-dot"></span>
+              <span style="font-size: 0.82rem; font-weight: 600; color: var(--navy-deep);">Telemetry Active</span>
+            </div>
+            <span style="font-size: 0.78rem; font-weight: 600; color: #DC2626; background: rgba(220,38,38,0.1); padding: 0.2rem 0.6rem; border-radius: 4px;">
+              Stalled Deal Flagged (4.2d)
+            </span>
+          </div>
+        </div>
+
+        <!-- ROW 3 / CARD 6 (Span 6): One-Click E-Signature -->
+        <div class="bento-card bento-span-6 fade-in stagger-2">
+          <div>
+            <div class="bento-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+            </div>
+            <h3 class="bento-title">One-click e-signature</h3>
+            <p class="bento-desc">Confirmed terms transition immediately into signed, auditable contracts via integrated
+              Odoo Sign pipelines.</p>
+          </div>
+
+          <div class="bento-micro-widget" style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.4rem;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <span style="font-size: 0.82rem; font-weight: 600; color: var(--navy-deep);">Odoo Sign API Connected</span>
+            </div>
+            <span style="font-size: 0.75rem; font-family: monospace; color: var(--navy-muted);">SHA-256 Verified</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       6. HOW IT WORKS (4-STEP HORIZONTAL TIMELINE)
+  ============================================================= -->
+  <section class="workflow-section" id="how-it-works">
+    <div class="container">
+
+      <div class="section-header fade-in">
+        <div class="section-eyebrow">Seamless Execution</div>
+        <h2 class="section-title">How DealFlow360 works</h2>
+        <p>Four automated stages turning fragmented quotes into verified revenue.</p>
+      </div>
+
+      <div class="timeline-grid">
+
+        <div class="timeline-step fade-in stagger-1">
+          <div class="step-number">01</div>
+          <h3 class="step-title">Build a quote</h3>
+          <p class="step-desc">Reps mix hardware, services, and subscription tiers in one fluid builder with instant
+            margin feedback.</p>
+        </div>
+
+        <div class="timeline-step fade-in stagger-2">
+          <div class="step-number">02</div>
+          <h3 class="step-title">Auto-route & recommend</h3>
+          <p class="step-desc">The engine scores blended discount risk, auto-routes multi-level approvals, and surfaces
+            statistical upsells.</p>
+        </div>
+
+        <div class="timeline-step fade-in stagger-3">
+          <div class="step-number">03</div>
+          <h3 class="step-title">Negotiate live</h3>
+          <p class="step-desc">Clients review terms in a dedicated portal. Counter-offers trigger predictive win-rate
+            models in real time.</p>
+        </div>
+
+        <div class="timeline-step fade-in stagger-4">
+          <div class="step-number">04</div>
+          <h3 class="step-title">Sign, split & bill</h3>
+          <p class="step-desc">Terms convert into signed e-contracts, stock splits automatically across depots, and
+            prorated billing schedules fire.</p>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       7. "BUILT DIFFERENT" (DIFFERENTIATION MATRIX)
+  ============================================================= -->
+  <section class="differentiation-section" id="comparison">
+    <div class="container">
+
+      <div class="diff-grid">
+
+        <div class="diff-statement fade-in">
+          <div class="pill" style="margin-bottom: 1rem;">Built Different</div>
+          <h2>We didn't build another CRM.</h2>
+          <p style="font-size: 1.1rem; color: var(--navy-deep); margin-bottom: 1.2rem;">Traditional sales software
+            forces your team to babysit spreadsheets, guess customer intent, and reconcile invoices by hand.</p>
+          <p>DealFlow360 replaces administrative drag with mathematical certainty.</p>
+        </div>
+
+        <div class="comparison-list fade-in stagger-2">
+
+          <div class="comparison-row">
+            <div class="old-way">Blind blanket discount approvals</div>
+            <div class="arrow-divider">&rarr;</div>
+            <div class="new-way">
+              <span class="check-icon">&#10003;</span> Blended multi-category risk scores
+            </div>
+          </div>
+
+          <div class="comparison-row">
+            <div class="old-way">Static PDF quote ping-pong over email</div>
+            <div class="arrow-divider">&rarr;</div>
+            <div class="new-way">
+              <span class="check-icon">&#10003;</span> Interactive living negotiation portal
+            </div>
+          </div>
+
+          <div class="comparison-row">
+            <div class="old-way">Manual multi-warehouse routing spreadsheets</div>
+            <div class="arrow-divider">&rarr;</div>
+            <div class="new-way">
+              <span class="check-icon">&#10003;</span> Stock-aware automated fulfillment splits
+            </div>
+          </div>
+
+          <div class="comparison-row">
+            <div class="old-way">Gut-feel discount counter offers</div>
+            <div class="arrow-divider">&rarr;</div>
+            <div class="new-way">
+              <span class="check-icon">&#10003;</span> ML-backed acceptance probabilities
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       8. TESTIMONIAL / SOCIAL PROOF
+  ============================================================= -->
+  <section class="testimonial-section" id="testimonials">
+    <div class="container testimonial-container fade-in">
+      <span class="quote-mark">&ldquo;</span>
+      <blockquote class="pull-quote">
+        DealFlow360 killed rogue discounting across our entire 40-person sales org overnight. We recovered 340 basis
+        points in gross margin in our very first quarter.
+      </blockquote>
+      <div class="quote-author">Marcus Vance</div>
+      <div class="quote-role">Head of Global Sales Operations, HyperScale Technologies</div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       9. FINAL HIGH-CONTRAST CTA SECTION
+  ============================================================= -->
+  <section class="final-cta-section" id="cta">
+    <div class="cta-glow"></div>
+    <div class="container final-cta-content fade-in">
+
+      <div class="pill"
+        style="background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); color: var(--bg-primary); margin-bottom: 1.5rem;">
+        Take Control of Your Pipeline
+      </div>
+
+      <h2>Your next deal shouldn't need a spreadsheet and a prayer.</h2>
+
+      <p>
+        Deploy self-governing pricing discipline, automated warehouse fulfillment, and predictive deal intelligence in
+        days.
+      </p>
+
+      <div style="display: flex; justify-content: center; align-items: center; margin-top: 1rem;">
+        <a href="/signup" onclick="window.top.location.href='/signup'; return false;" id="bottomCtaCreateAccount" class="btn btn-light btn-lg" style="font-size: 1.1rem; padding: 1.05rem 2.6rem; font-weight: 700; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);">
+          Create account now!
+        </a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============================================================
+       10. MINIMAL FOOTER
+  ============================================================= -->
+  <footer class="site-footer">
+    <div class="container">
+
+      <div class="footer-grid">
+
+        <div class="footer-brand">
+          <a href="#" class="logo">
+            DealFlow360<span class="logo-dot"></span>
+          </a>
+          <p>The self-governing B2B sales operations platform engineered for modern enterprise revenue teams.</p>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Product</div>
+          <ul class="footer-links">
+            <li><a href="#features">Blended Risk Scoring</a></li>
+            <li><a href="#features">Negotiation Predictor</a></li>
+            <li><a href="#features">Warehouse Splitting</a></li>
+            <li><a href="#features">Deal Health Radar</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Company</div>
+          <ul class="footer-links">
+            <li><a href="#hero">About DealFlow</a></li>
+            <li><a href="#testimonials">Customer Stories</a></li>
+            <li><a href="#cta">Careers</a></li>
+            <li><a href="#cta">Contact Sales</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <div class="footer-col-title">Legal & Security</div>
+          <ul class="footer-links">
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Service</a></li>
+            <li><a href="#">Security & SOC 2</a></li>
+            <li><a href="#">Audit Compliance</a></li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="footer-bottom">
+        <div>&copy; 2026 DealFlow360 Technologies Inc. All rights reserved.</div>
+        <div style="display: flex; gap: 1.5rem;">
+          <a href="#">System Status</a>
+          <a href="#">API Documentation</a>
+        </div>
+      </div>
+
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       INTERACTION SCRIPT (IntersectionObserver + Dynamic Demo)
+  ============================================================= -->
+  <script>
+    // 1. Sticky Navigation Bar Transition on Scroll
+    window.addEventListener('scroll', () => {
+      const nav = document.getElementById('mainNav');
+      if (window.scrollY > 40) {
+        nav.classList.add('scrolled');
+      } else {
+        nav.classList.remove('scrolled');
+      }
+    });
+
+    // 2. Smooth Scroll-Triggered Fade-In via IntersectionObserver
+    const observerOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.12
+    };
+
+    const fadeObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+        }
+      });
+    }, observerOptions);
+
+    document.querySelectorAll('.fade-in').forEach(el => {
+      fadeObserver.observe(el);
+    });
+
+    // 3. Mockup Tab Switcher
+    function switchAppTab(screenId, btn) {
+      // Hide all screens
+      document.querySelectorAll('.app-screen').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.mockup-tab-btn').forEach(b => b.classList.remove('active'));
+
+      // Show targeted screen
+      const activeScreen = document.getElementById('screen-' + screenId);
+      if (activeScreen) {
+        activeScreen.classList.add('active');
+      }
+      btn.classList.add('active');
+    }
+
+    // 4. Interactive Live Discount Simulation & Blended Risk Score
+    let hasUpsell = false;
+
+    function updateDiscountSimulation(discountVal) {
+      const display = document.getElementById('discountValueDisplay');
+      const riskNum = document.getElementById('riskScoreNumber');
+      const statusPill = document.getElementById('approvalStatusPill');
+      const statusText = document.getElementById('approvalText');
+
+      display.textContent = discountVal + '%';
+
+      // Services ceiling is 10%
+      const ceiling = 10;
+      const overage = Math.max(0, discountVal - ceiling);
+
+      // Calculate simulated blended risk score
+      let score = (overage * 0.08 + 0.04).toFixed(2);
+      if (hasUpsell) {
+        score = (score * 0.82).toFixed(2); // Upsell improves overall blended margin
+      }
+
+      riskNum.textContent = score;
+
+      if (discountVal <= 10) {
+        riskNum.style.color = '#4ADE80'; // Green
+        statusPill.style.background = 'rgba(74, 222, 128, 0.12)';
+        statusPill.style.borderColor = 'rgba(74, 222, 128, 0.3)';
+        statusPill.style.color = '#4ADE80';
+        statusText.textContent = 'Auto-Approved (Within Ceilings)';
+      } else if (discountVal <= 18) {
+        riskNum.style.color = '#FBBF24'; // Amber
+        statusPill.style.background = 'rgba(251, 191, 36, 0.15)';
+        statusPill.style.borderColor = 'rgba(251, 191, 36, 0.4)';
+        statusPill.style.color = '#FBBF24';
+        statusText.textContent = 'Requires Sales Manager Approval';
+      } else {
+        riskNum.style.color = '#F87171'; // Red
+        statusPill.style.background = 'rgba(239, 68, 68, 0.15)';
+        statusPill.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        statusPill.style.color = '#F87171';
+        statusText.textContent = 'Requires Manager + Finance Approval';
+      }
+    }
+
+    function toggleUpsellItem() {
+      const upsellRow = document.getElementById('upsellLine');
+      const toggleBtn = document.getElementById('btnToggleUpsell');
+      const slider = document.getElementById('discountSlider');
+
+      hasUpsell = !hasUpsell;
+
+      if (hasUpsell) {
+        upsellRow.style.display = 'table-row';
+        toggleBtn.textContent = 'Remove Item';
+        toggleBtn.style.background = 'rgba(255,255,255,0.15)';
+        toggleBtn.style.color = '#FFFFFF';
+      } else {
+        upsellRow.style.display = 'none';
+        toggleBtn.textContent = 'Add to Quote';
+        toggleBtn.style.background = 'var(--accent-tan)';
+        toggleBtn.style.color = 'var(--navy-deep)';
+      }
+
+      updateDiscountSimulation(slider.value);
+    }
+
+    // 5. Interactive Mouse-Follow Glow in Final CTA Section
+    const ctaSection = document.getElementById('cta');
+    const ctaGlow = document.querySelector('.cta-glow');
+
+    if (ctaSection && ctaGlow) {
+      ctaSection.addEventListener('mousemove', (e) => {
+        const rect = ctaSection.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        ctaGlow.style.left = `${x}px`;
+        ctaGlow.style.top = `${y}px`;
+        ctaGlow.style.opacity = '1';
+      });
+
+      ctaSection.addEventListener('mouseleave', () => {
+        ctaGlow.style.left = '50%';
+        ctaGlow.style.top = '50%';
+        ctaGlow.style.opacity = '0.75';
+      });
+    }
+
+    // 6. Explicit Redirection to Signup Page
+    function navigateToSignup(event) {
+      if (event && event.preventDefault) event.preventDefault();
+      window.top.location.href = '/signup';
+    }
+
+    const signupActionButtons = ['navCtaCreateAccount', 'heroCtaSeeAction', 'bottomCtaCreateAccount'];
+    signupActionButtons.forEach(btnId => {
+      const buttonEl = document.getElementById(btnId);
+      if (buttonEl) {
+        buttonEl.addEventListener('click', navigateToSignup);
+      }
+    });
+  </script>
+</body>
+
+</html>

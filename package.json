@@ -1,0 +1,21 @@
+{
+  "name": "dealflow360",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DealFlow360 — Intelligent B2B Sales Operations Platform",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "dev:consumer": "cd event-consumer && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "db:migrate": "cd server && npx prisma migrate dev",
+    "db:seed": "cd server && npx prisma db seed",
+    "db:reset": "cd server && npx prisma migrate reset --force",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "setup": "npm run docker:up && sleep 5 && cd server && npm install && npx prisma migrate dev --name init && npx prisma db seed && cd ../client && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
