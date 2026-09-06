@@ -76,27 +76,23 @@ export async function getRequiredApprovalLevel(blendedScore, totalMarginPct = nu
   const financeThreshold = Number(config.financeThreshold);
   const minMarginFloor = config.minMarginFloor ? Number(config.minMarginFloor) : 20;
 
-  // 1. Margin floor breach check: flag it but route to MANAGER (sole gatekeeper)
-  if (totalMarginPct !== null && totalMarginPct < minMarginFloor) {
+  // 1. Margin floor breach or high blended risk score >= financeThreshold requires FINANCE escalation (two-stage: Manager then Finance)
+  if ((totalMarginPct !== null && totalMarginPct < minMarginFloor) || blendedScore >= financeThreshold) {
     return {
-      level: 'MANAGER',
-      marginBreach: true,
+      level: 'FINANCE',
+      marginBreach: totalMarginPct !== null && totalMarginPct < minMarginFloor,
       minMarginFloor,
       marginPct: totalMarginPct,
+      blendedScore,
     };
   }
 
-  // 2. If high blended risk score >= financeThreshold, still route to MANAGER (sole gatekeeper)
-  if (blendedScore >= financeThreshold) {
-    return { level: 'MANAGER', marginBreach: false, blendedScore };
-  }
-
-  // 3. If there are NO discounts at all (0% discount across all lines) and score is 0, auto-approve
+  // 2. If there are NO discounts at all (0% discount across all lines) and score is 0, auto-approve
   if (blendedScore === 0 && !hasDiscounts) {
-    return { level: 'NONE', marginBreach: false };
+    return { level: 'NONE', marginBreach: false, blendedScore };
   }
 
-  // 4. Any quotation with discounts or submitted for review requires SALES_MANAGER sign-off
+  // 3. Standard discount overage requires SALES_MANAGER sign-off
   return { level: 'MANAGER', marginBreach: false, blendedScore };
 }
 

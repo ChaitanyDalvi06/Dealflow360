@@ -211,7 +211,8 @@ router.get('/:id', authenticate, async (req, res, next) => {
         rep: { select: { id: true, name: true, email: true, role: true } },
         lines: {
           include: {
-            product: { include: { subscriptionPlan: true } },
+            product: { include: { subscriptionPlan: true, variants: true } },
+            variant: true,
             subscription: true,
           },
         },
@@ -221,6 +222,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
         },
         warehouseSplits: { include: { warehouse: true } },
         invoices: { include: { payments: true } },
+        creditNotes: true,
         negotiations: { orderBy: { createdAt: 'asc' } },
       },
     });
@@ -255,6 +257,7 @@ async function saveQuotationLines(quotationId, lines) {
       data: {
         quotationId,
         productId: item.productId,
+        variantId: item.variantId || null,
         quantity,
         unitPrice,
         discountPct,
@@ -271,7 +274,7 @@ async function saveQuotationLines(quotationId, lines) {
 // ─── CREATE QUOTATION ──────────────────────────────────────
 router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
-    const { customerId, notes, requirementId, lines } = req.body;
+    const { customerId, notes, requirementId, lines, currency = 'INR', deliveryPromiseDate } = req.body;
 
     const customer = await prisma.customer.findUnique({ where: { id: customerId } });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
@@ -281,6 +284,8 @@ router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'),
       repId: req.user.id,
       status: 'DRAFT',
       notes,
+      currency,
+      deliveryPromiseDate: deliveryPromiseDate ? new Date(deliveryPromiseDate) : null,
       orderTotal: 0,
       totalMargin: 0,
     };
@@ -324,7 +329,8 @@ router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'),
       include: {
         customer: { select: { id: true, name: true, tier: true, company: true } },
         rep: { select: { id: true, name: true } },
-        lines: { include: { product: true } },
+        lines: { include: { product: true, variant: true } },
+        creditNotes: true,
       },
     });
 
@@ -337,13 +343,17 @@ router.post('/', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'),
 // ─── UPDATE QUOTATION (DRAFT) ──────────────────────────────
 router.put('/:id', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'), async (req, res, next) => {
   try {
-    const { customerId, notes, lines } = req.body;
+    const { customerId, notes, lines, currency, deliveryPromiseDate } = req.body;
     const quotation = await prisma.quotation.findUnique({ where: { id: req.params.id } });
     if (!quotation) return res.status(404).json({ error: 'Quotation not found' });
 
     const updateData = {};
     if (customerId) updateData.customerId = customerId;
     if (notes !== undefined) updateData.notes = notes;
+    if (currency) updateData.currency = currency;
+    if (deliveryPromiseDate !== undefined) {
+      updateData.deliveryPromiseDate = deliveryPromiseDate ? new Date(deliveryPromiseDate) : null;
+    }
 
     if (Object.keys(updateData).length > 0) {
       await prisma.quotation.update({
@@ -361,7 +371,8 @@ router.put('/:id', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'ADMIN'
       include: {
         customer: { select: { id: true, name: true, tier: true, company: true } },
         rep: { select: { id: true, name: true } },
-        lines: { include: { product: true } },
+        lines: { include: { product: true, variant: true } },
+        creditNotes: true,
       },
     });
 

@@ -19,6 +19,9 @@ function getCategoryPill(category) {
   if (catLower.includes('serv')) {
     return <span className="cat-pill cat-service"><Wrench size={13} /> {category}</span>;
   }
+  if (catLower.includes('apparel')) {
+    return <span className="cat-pill" style={{ background: '#FCE7F3', color: '#9D174D', border: '1px solid #FBCFE8', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}><Tag size={13} /> {category}</span>;
+  }
   return <span className="cat-pill cat-accessories"><Headphones size={13} /> {category}</span>;
 }
 
@@ -48,7 +51,88 @@ export default function AdminPage() {
     description: '',
     isPromoted: false,
     isRecurring: false,
+    variants: [],
   });
+
+  const handleAddVariantRow = (presetAttr = 'Size', presetVal = '', presetExtra = 0) => {
+    setProductForm(prev => ({
+      ...prev,
+      variants: [
+        ...prev.variants,
+        {
+          id: 'temp-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+          attribute: presetAttr,
+          value: presetVal,
+          extraPrice: presetExtra,
+          sku: '',
+        }
+      ]
+    }));
+  };
+
+  const handleRemoveVariantRow = (index) => {
+    setProductForm(prev => ({
+      ...prev,
+      variants: prev.variants.filter((_, idx) => idx !== index)
+    }));
+  };
+
+  const handleVariantChange = (index, field, val) => {
+    setProductForm(prev => {
+      const nextVariants = [...prev.variants];
+      nextVariants[index] = { ...nextVariants[index], [field]: val };
+      return { ...prev, variants: nextVariants };
+    });
+  };
+
+  const applyPresetVariants = (type) => {
+    if (type === 'apparel') {
+      const sizes = ['S', 'M', 'L', 'XL', '2XL'];
+      setProductForm(prev => ({
+        ...prev,
+        variants: sizes.map((s, idx) => ({
+          id: 'temp-apparel-' + s,
+          attribute: 'Size',
+          value: s,
+          extraPrice: idx >= 3 ? 150 : 0,
+          sku: `${(prev.name || 'ITEM').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)}-${s}`
+        }))
+      }));
+    } else if (type === 'storage') {
+      const configs = [
+        { val: '256GB SSD', extra: 0 },
+        { val: '512GB SSD', extra: 4500 },
+        { val: '1TB SSD', extra: 9000 },
+        { val: '2TB SSD', extra: 18000 },
+      ];
+      setProductForm(prev => ({
+        ...prev,
+        variants: configs.map(c => ({
+          id: 'temp-storage-' + c.val,
+          attribute: 'Storage',
+          value: c.val,
+          extraPrice: c.extra,
+          sku: ''
+        }))
+      }));
+    } else if (type === 'pack') {
+      const packs = [
+        { val: 'Single Pack (1 unit)', extra: 0 },
+        { val: 'Team Pack (5 units)', extra: 3500 },
+        { val: 'Bulk Enterprise Pack (25 units)', extra: 15000 },
+      ];
+      setProductForm(prev => ({
+        ...prev,
+        variants: packs.map(p => ({
+          id: 'temp-pack-' + p.val,
+          attribute: 'Pack Size',
+          value: p.val,
+          extraPrice: p.extra,
+          sku: ''
+        }))
+      }));
+    }
+  };
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -73,8 +157,7 @@ export default function AdminPage() {
         });
       }
     } catch (err) {
-      console.error('Failed to load admin data:', err);
-      setFeedback({ type: 'danger', message: 'Failed to load configuration: ' + (err.response?.data?.error || err.message) });
+      setFeedback({ type: 'danger', message: 'Failed to fetch admin governance data: ' + err.message });
     } finally {
       setLoading(false);
     }
@@ -84,16 +167,53 @@ export default function AdminPage() {
     fetchAdminData();
   }, []);
 
-  const handleTierChange = (index, val) => {
+  const handleUpdateTiers = async () => {
+    try {
+      setSaving(true);
+      await api.put('/admin/discount-tiers', { tiers: discountTiers });
+      setFeedback({ type: 'success', message: 'Discount governance tiers successfully synchronized with deal pipeline.' });
+    } catch (err) {
+      setFeedback({ type: 'danger', message: 'Failed to update discount tiers: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdateCategoryLimits = async () => {
+    try {
+      setSaving(true);
+      await api.put('/admin/category-limits', { limits: categoryLimits });
+      setFeedback({ type: 'success', message: 'Category discount limits locked and active.' });
+    } catch (err) {
+      setFeedback({ type: 'danger', message: 'Failed to update category limits: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTierChange = (index, field, value) => {
     const updated = [...discountTiers];
-    updated[index].maxDiscountPct = Number(val);
+    updated[index][field] = field === 'role' ? value : Number(value);
     setDiscountTiers(updated);
   };
 
-  const handleCategoryChange = (index, val) => {
+  const handleCatLimitChange = (index, value) => {
     const updated = [...categoryLimits];
-    updated[index].maxDiscountPct = Number(val);
+    updated[index].maxDiscountPct = Number(value);
     setCategoryLimits(updated);
+  };
+
+  const handleUpdateCustomerTier = async (customerId, newTier) => {
+    try {
+      setSaving(true);
+      await api.put(`/admin/customers/${customerId}/tier`, { tier: newTier });
+      setCustomers(customers.map(c => c.id === customerId ? { ...c, tier: newTier } : c));
+      setFeedback({ type: 'success', message: `Customer tier updated to ${newTier} successfully.` });
+    } catch (err) {
+      setFeedback({ type: 'danger', message: 'Failed to update customer tier: ' + (err.response?.data?.error || err.message) });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleProductMarginChange = (index, val) => {
@@ -153,6 +273,7 @@ export default function AdminPage() {
       description: '',
       isPromoted: false,
       isRecurring: false,
+      variants: [],
     });
     setModalOpen(true);
   };
@@ -168,6 +289,13 @@ export default function AdminPage() {
       description: prod.description || '',
       isPromoted: Boolean(prod.isPromoted),
       isRecurring: Boolean(prod.isRecurring),
+      variants: Array.isArray(prod.variants) ? prod.variants.map(v => ({
+        id: v.id,
+        attribute: v.attribute || 'Variant',
+        value: v.value || '',
+        extraPrice: Number(v.extraPrice) || 0,
+        sku: v.sku || '',
+      })) : [],
     });
     setModalOpen(true);
   };
@@ -406,6 +534,23 @@ export default function AdminPage() {
                     <tr key={prod.id}>
                       <td>
                         <strong style={{ color: '#0F2C59', fontSize: '0.95rem' }}>{prod.name}</strong>
+                        {prod.variants && prod.variants.length > 0 && (
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '4px' }}>
+                            <span style={{ fontSize: '0.7rem', background: '#EFF6FF', color: '#1D4ED8', padding: '2px 7px', borderRadius: '4px', fontWeight: '700', border: '1px solid #BFDBFE' }}>
+                              {prod.variants.length} Options
+                            </span>
+                            {prod.variants.slice(0, 3).map((v) => (
+                              <span key={v.id || v.value} style={{ fontSize: '0.68rem', background: '#F8FAFC', color: '#334155', padding: '2px 6px', borderRadius: '4px', border: '1px solid #E2E8F0' }}>
+                                {v.attribute}: <strong>{v.value}</strong>{Number(v.extraPrice) > 0 ? ` (+₹${Number(v.extraPrice).toLocaleString('en-IN')})` : ''}
+                              </span>
+                            ))}
+                            {prod.variants.length > 3 && (
+                              <span style={{ fontSize: '0.68rem', color: '#64748B', alignSelf: 'center' }}>
+                                +{prod.variants.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {prod.description && (
                           <div style={{ color: '#64748B', fontSize: '0.8rem', marginTop: '2px' }}>{prod.description}</div>
                         )}
@@ -761,7 +906,7 @@ export default function AdminPage() {
           ══════════════════════════════════════════════════════════ */}
       {modalOpen && (
         <div className="modal-backdrop" style={{ backdropFilter: 'blur(8px)', background: 'rgba(15, 44, 89, 0.6)' }}>
-          <div className="modal-content" style={{ maxWidth: '520px', width: '100%', borderRadius: '20px', border: '1px solid rgba(15, 44, 89, 0.1)', padding: '28px', boxShadow: '0 25px 50px -12px rgba(15, 44, 89, 0.25)' }}>
+          <div className="modal-content" style={{ maxWidth: '680px', width: '95%', maxHeight: '90vh', overflowY: 'auto', borderRadius: '20px', border: '1px solid rgba(15, 44, 89, 0.1)', padding: '28px', boxShadow: '0 25px 50px -12px rgba(15, 44, 89, 0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', borderBottom: '1px solid rgba(15, 44, 89, 0.08)', paddingBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'rgba(15, 44, 89, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0F2C59' }}>
@@ -786,7 +931,7 @@ export default function AdminPage() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Enterprise Cloud Backup 5TB"
+                  placeholder="e.g. Enterprise Cloud Backup 5TB or Premium Cotton T-Shirt"
                   value={productForm.name}
                   onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                   style={{ borderRadius: '10px', padding: '10px 14px' }}
@@ -808,6 +953,7 @@ export default function AdminPage() {
                     <option value="Software">Software</option>
                     <option value="Service">Service</option>
                     <option value="Accessories">Accessories</option>
+                    <option value="Apparel">Apparel / Merchandise</option>
                   </select>
                 </div>
 
@@ -859,7 +1005,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.75rem', padding: '1rem', background: '#FAF8F5', borderRadius: '12px', border: '1px solid rgba(15, 44, 89, 0.08)' }}>
+              <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', padding: '1rem', background: '#FAF8F5', borderRadius: '12px', border: '1px solid rgba(15, 44, 89, 0.08)' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.88rem', fontWeight: '600', color: '#0F2C59' }}>
                   <input
                     type="checkbox"
@@ -879,6 +1025,193 @@ export default function AdminPage() {
                   />
                   <span>Recurring Subscription</span>
                 </label>
+              </div>
+
+              {/* ══════════════════════════════════════════════════════════
+                  PRODUCT VARIANTS CONFIGURATION (ATTRIBUTES, SIZES, OPTIONS)
+                  ══════════════════════════════════════════════════════════ */}
+              <div style={{
+                marginBottom: '1.75rem',
+                padding: '1.25rem',
+                background: '#F8FAFC',
+                borderRadius: '14px',
+                border: '1px solid #E2E8F0',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Sliders size={16} color="#0F2C59" />
+                      <span style={{ fontWeight: '700', color: '#0F2C59', fontSize: '0.95rem' }}>Product Variants & Options</span>
+                      <span style={{ fontSize: '0.72rem', background: '#E0E7FF', color: '#3730A3', padding: '2px 8px', borderRadius: '12px', fontWeight: '700' }}>
+                        {productForm.variants.length} {productForm.variants.length === 1 ? 'Option' : 'Options'}
+                      </span>
+                    </div>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#64748B' }}>
+                      Add dynamic options for any product (e.g. Size, Color, Capacity, Pack, Edition) with differential add-on prices.
+                    </p>
+                  </div>
+
+                  {/* Presets */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => applyPresetVariants('apparel')}
+                      className="btn btn-outline"
+                      style={{ fontSize: '0.72rem', padding: '4px 8px', borderRadius: '6px', fontWeight: '600' }}
+                      title="Load S, M, L, XL, 2XL sizes"
+                    >
+                      + Sizes (S/M/L/XL)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPresetVariants('storage')}
+                      className="btn btn-outline"
+                      style={{ fontSize: '0.72rem', padding: '4px 8px', borderRadius: '6px', fontWeight: '600' }}
+                      title="Load Storage configurations"
+                    >
+                      + Storage (SSD)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPresetVariants('pack')}
+                      className="btn btn-outline"
+                      style={{ fontSize: '0.72rem', padding: '4px 8px', borderRadius: '6px', fontWeight: '600' }}
+                      title="Load Pack Sizes"
+                    >
+                      + Pack Tiers
+                    </button>
+                  </div>
+                </div>
+
+                {/* Variant rows list */}
+                {productForm.variants.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '1.25rem',
+                    background: '#FFFFFF',
+                    borderRadius: '10px',
+                    border: '1px dashed #CBD5E1',
+                    color: '#64748B',
+                    fontSize: '0.85rem'
+                  }}>
+                    <span>No variants configured. Product will sell as a single standard item.</span>
+                    <div style={{ marginTop: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleAddVariantRow('Size', 'Medium', 0)}
+                        className="btn btn-outline"
+                        style={{ fontSize: '0.8rem', padding: '6px 14px', borderRadius: '8px', fontWeight: '600' }}
+                      >
+                        <Plus size={14} style={{ marginRight: '4px' }} /> Add First Variant (e.g. Size / Color / RAM)
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1.2fr 1.5fr 1fr 1fr 34px',
+                      gap: '8px',
+                      padding: '0 4px',
+                      fontSize: '0.72rem',
+                      fontWeight: '700',
+                      color: '#475569',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}>
+                      <span>Attribute</span>
+                      <span>Option / Value *</span>
+                      <span>Extra Price (+₹)</span>
+                      <span>SKU (Optional)</span>
+                      <span></span>
+                    </div>
+
+                    <div style={{ maxHeight: '220px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '2px' }}>
+                      {productForm.variants.map((v, idx) => (
+                        <div
+                          key={v.id || idx}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1.2fr 1.5fr 1fr 1fr 34px',
+                            gap: '8px',
+                            alignItems: 'center',
+                            background: '#FFFFFF',
+                            padding: '6px 8px',
+                            borderRadius: '8px',
+                            border: '1px solid #E2E8F0'
+                          }}
+                        >
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="e.g. Size, Color, RAM"
+                            value={v.attribute}
+                            onChange={(e) => handleVariantChange(idx, 'attribute', e.target.value)}
+                            style={{ fontSize: '0.82rem', padding: '6px 8px', borderRadius: '6px' }}
+                            required
+                          />
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="e.g. XL, Navy Blue, 32GB"
+                            value={v.value}
+                            onChange={(e) => handleVariantChange(idx, 'value', e.target.value)}
+                            style={{ fontSize: '0.82rem', padding: '6px 8px', borderRadius: '6px', fontWeight: '600' }}
+                            required
+                          />
+                          <div style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: '7px', top: '7px', fontSize: '0.75rem', color: '#64748B' }}>+₹</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="form-control"
+                              placeholder="0"
+                              value={v.extraPrice}
+                              onChange={(e) => handleVariantChange(idx, 'extraPrice', e.target.value)}
+                              style={{ fontSize: '0.82rem', padding: '6px 6px 6px 24px', borderRadius: '6px', fontFamily: 'JetBrains Mono, monospace' }}
+                            />
+                          </div>
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="e.g. TSH-BLK-XL"
+                            value={v.sku || ''}
+                            onChange={(e) => handleVariantChange(idx, 'sku', e.target.value)}
+                            style={{ fontSize: '0.78rem', padding: '6px 8px', borderRadius: '6px' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveVariantRow(idx)}
+                            className="action-icon-btn delete"
+                            style={{ width: '32px', height: '32px' }}
+                            title="Remove Variant Option"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed #E2E8F0' }}>
+                      <button
+                        type="button"
+                        onClick={() => handleAddVariantRow(productForm.variants[productForm.variants.length - 1]?.attribute || 'Size', '', 0)}
+                        className="btn btn-outline"
+                        style={{ fontSize: '0.78rem', padding: '5px 12px', borderRadius: '6px', fontWeight: '600' }}
+                      >
+                        <Plus size={13} style={{ marginRight: '4px' }} /> Add Option Row
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setProductForm(prev => ({ ...prev, variants: [] }))}
+                        style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Clear all variants
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>

@@ -21,6 +21,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const products = await prisma.product.findMany({
       where,
       include: {
+        variants: true,
         priceListEntries: true,
         subscriptionPlan: true,
       },
@@ -39,6 +40,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
     const product = await prisma.product.findUnique({
       where: { id: req.params.id },
       include: {
+        variants: true,
         priceListEntries: true,
         subscriptionPlan: true,
         stockLevels: { include: { warehouse: true } },

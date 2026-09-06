@@ -58,4 +58,5 @@ export const TOPICS = {
   DISCOUNT_EVENTS: 'discount-events',
   DEAL_EVENTS: 'deal-events',
   STOCK_EVENTS: 'stock-events',
+  AUDIT_EVENTS: 'audit-events',
 };

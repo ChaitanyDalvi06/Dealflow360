@@ -107,6 +107,9 @@ router.get('/products', authenticate, async (req, res, next) => {
     const products = await prisma.product.findMany({
       include: {
         stockLevels: { select: { quantity: true, warehouse: { select: { name: true } } } },
+        variants: {
+          orderBy: { createdAt: 'asc' },
+        },
       },
       orderBy: { name: 'asc' },
     });
@@ -116,7 +119,7 @@ router.get('/products', authenticate, async (req, res, next) => {
 
 router.post('/products', ...adminOnly, async (req, res, next) => {
   try {
-    const { name, category, basePrice, margin, description, isPromoted, isRecurring } = req.body;
+    const { name, category, basePrice, margin, description, isPromoted, isRecurring, variants } = req.body;
 
     if (!name || !category || basePrice === undefined || margin === undefined) {
       return res.status(400).json({ error: 'Name, category, base price, and gross margin are required' });
@@ -144,6 +147,24 @@ router.post('/products', ...adminOnly, async (req, res, next) => {
         isRecurring: Boolean(isRecurring),
       },
     });
+
+    // 1.1 Create variants if specified (e.g. Size, Color, Storage, Pack, etc.)
+    if (Array.isArray(variants) && variants.length > 0) {
+      const validVariants = variants
+        .filter(v => v && (v.value?.toString().trim() || v.attribute?.toString().trim()))
+        .map(v => ({
+          productId: product.id,
+          attribute: v.attribute?.toString().trim() || 'Variant',
+          value: v.value?.toString().trim() || 'Standard',
+          extraPrice: Number(v.extraPrice) || 0,
+          sku: v.sku?.toString().trim() || null,
+        }));
+      if (validVariants.length > 0) {
+        await prisma.productVariant.createMany({
+          data: validVariants,
+        });
+      }
+    }
 
     // 2. Ensure CategoryDiscountLimit exists for this category
     const existingCat = await prisma.categoryDiscountLimit.findUnique({ where: { category } });
@@ -183,13 +204,21 @@ router.post('/products', ...adminOnly, async (req, res, next) => {
       });
     }
 
-    res.status(201).json(product);
+    const createdProduct = await prisma.product.findUnique({
+      where: { id: product.id },
+      include: {
+        stockLevels: { select: { quantity: true, warehouse: { select: { name: true } } } },
+        variants: true,
+      },
+    });
+
+    res.status(201).json(createdProduct);
   } catch (err) { next(err); }
 });
 
 router.put('/products/:id', ...adminOnly, async (req, res, next) => {
   try {
-    const { name, category, basePrice, margin, description, isPromoted, isRecurring } = req.body;
+    const { name, category, basePrice, margin, description, isPromoted, isRecurring, variants } = req.body;
     const updateData = {};
 
     if (name !== undefined) updateData.name = name;
@@ -204,6 +233,35 @@ router.put('/products/:id', ...adminOnly, async (req, res, next) => {
       where: { id: req.params.id },
       data: updateData,
     });
+
+    // If variants array is provided, sync variants
+    if (Array.isArray(variants)) {
+      // First, delete any variants not in use or refresh
+      // Note: Quotation lines might reference variantId, so we can delete safely or catch foreign key if needed
+      try {
+        await prisma.productVariant.deleteMany({
+          where: { productId: req.params.id },
+        });
+      } catch (delErr) {
+        console.warn('Could not delete old variants directly (possibly referenced), will append new:', delErr.message);
+      }
+
+      const validVariants = variants
+        .filter(v => v && (v.value?.toString().trim() || v.attribute?.toString().trim()))
+        .map(v => ({
+          productId: req.params.id,
+          attribute: v.attribute?.toString().trim() || 'Variant',
+          value: v.value?.toString().trim() || 'Standard',
+          extraPrice: Number(v.extraPrice) || 0,
+          sku: v.sku?.toString().trim() || null,
+        }));
+
+      if (validVariants.length > 0) {
+        await prisma.productVariant.createMany({
+          data: validVariants,
+        });
+      }
+    }
 
     // If basePrice changed, update price list entries
     if (basePrice !== undefined) {
@@ -229,7 +287,15 @@ router.put('/products/:id', ...adminOnly, async (req, res, next) => {
       }
     }
 
-    res.json(product);
+    const updatedProduct = await prisma.product.findUnique({
+      where: { id: req.params.id },
+      include: {
+        stockLevels: { select: { quantity: true, warehouse: { select: { name: true } } } },
+        variants: true,
+      },
+    });
+
+    res.json(updatedProduct);
   } catch (err) { next(err); }
 });
 
@@ -246,6 +312,7 @@ router.delete('/products/:id', ...adminOnly, async (req, res, next) => {
     }
 
     // Clean up relations first
+    await prisma.productVariant.deleteMany({ where: { productId: req.params.id } });
     await prisma.priceListEntry.deleteMany({ where: { productId: req.params.id } });
     await prisma.stockLevel.deleteMany({ where: { productId: req.params.id } });
     await prisma.subscriptionPlan.deleteMany({ where: { productId: req.params.id } });

@@ -352,7 +352,7 @@ router.post('/quote/:token/sign', async (req, res, next) => {
       const { generateQuotationInvoicePdf } = await import('../services/pdf.service.js');
       const { syncQuotationToOdoo } = await import('../services/odoo.service.js');
       generateQuotationInvoicePdf(quotation.id)
-        .then(pdfInfo => syncQuotationToOdoo(quotation.id, pdfInfo?.filePath))
+        .then(pdfInfo => syncQuotationToOdoo(quotation.id, pdfInfo?.filePath, sigRecord))
         .catch(e => console.warn('[Odoo Sign Sync Warning]:', e.message));
     } catch (e) {
       console.warn('[Odoo Sign Init Warning]:', e.message);

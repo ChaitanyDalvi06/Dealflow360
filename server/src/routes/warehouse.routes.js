@@ -108,4 +108,15 @@ router.patch('/stock', authenticate, authorize('ADMIN'), async (req, res, next) 
   }
 });
 
+// ─── CONSOLIDATE REMAINING BACKORDER ────────────────────────
+router.post('/consolidate/:quotationId', authenticate, authorize('SALES_REP', 'SALES_MANAGER', 'FINANCE', 'ADMIN'), async (req, res, next) => {
+  try {
+    const { consolidateBackorders } = await import('../services/warehouse.service.js');
+    const result = await consolidateBackorders(req.params.quotationId);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

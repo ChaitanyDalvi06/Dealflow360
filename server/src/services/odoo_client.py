@@ -25,19 +25,36 @@ def sync_to_odoo(config, quotation_data, pdf_path):
 
     models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
 
-    # 2. Find or create customer partner in Odoo
+    # 2. Find or create customer partner in Odoo with actual Signer Details
     customer = quotation_data.get('customer', {})
-    cust_name = customer.get('name') or customer.get('company') or 'Enterprise Customer'
+    signer = quotation_data.get('signer') or {}
+    signer_name = signer.get('name') or quotation_data.get('signerName')
+    signer_role = signer.get('designation') or quotation_data.get('signerDesignation')
+    
+    quote_num = quotation_data.get('quoteNumber', 'QT-CONTRACT')
+    cust_company = customer.get('company') or customer.get('name') or 'Enterprise Client'
     cust_email = customer.get('email') or 'customer@dealflow360.io'
+    
+    # Prioritize the real buyer's e-sign name over generic placeholder
+    cust_name = signer_name if (signer_name and signer_name.strip()) else (customer.get('name') or cust_company)
+
+    partner_vals = {
+        'name': cust_name,
+        'email': cust_email,
+        'is_company': False,
+    }
+    if signer_role:
+        partner_vals['function'] = signer_role
+    if cust_company:
+        partner_vals['comment'] = f"Organization: {cust_company} | DealFlow360 Quotation: {quote_num} | Odoo Sign Sealed"
 
     partner_ids = models.execute_kw(db, uid, api_key, 'res.partner', 'search', [[('email', '=', cust_email)]])
     if partner_ids:
         partner_id = partner_ids[0]
+        # Update partner with verified signatory name and role
+        models.execute_kw(db, uid, api_key, 'res.partner', 'write', [[partner_id], partner_vals])
     else:
-        partner_id = models.execute_kw(db, uid, api_key, 'res.partner', 'create', [{
-            'name': cust_name,
-            'email': cust_email,
-        }])
+        partner_id = models.execute_kw(db, uid, api_key, 'res.partner', 'create', [partner_vals])
 
     # 3. Read PDF file and upload as attachment to Odoo
     quote_num = quotation_data.get('quoteNumber', 'QT-CONTRACT')

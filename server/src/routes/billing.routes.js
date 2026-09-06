@@ -59,4 +59,45 @@ router.post('/pay/:invoiceId', authenticate, async (req, res, next) => {
   }
 });
 
+// ─── MODIFY SUBSCRIPTION (MID-CYCLE PRORATION) ──────────────
+router.post('/subscriptions/:id/modify', authenticate, async (req, res, next) => {
+  try {
+    const { newQuantity } = req.body;
+    if (!newQuantity || newQuantity <= 0) {
+      return res.status(400).json({ error: 'Valid new quantity is required' });
+    }
+    const { modifySubscription } = await import('../services/billing.service.js');
+    const result = await modifySubscription(req.params.id, Number(newQuantity));
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── CANCEL SUBSCRIPTION (CREDIT NOTE / REFUND) ─────────────
+router.post('/subscriptions/:id/cancel', authenticate, async (req, res, next) => {
+  try {
+    const { reason } = req.body;
+    const { cancelSubscription } = await import('../services/billing.service.js');
+    const result = await cancelSubscription(req.params.id, reason);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── GET CREDIT NOTES FOR A QUOTATION ───────────────────────
+router.get('/credit-notes/:quotationId', authenticate, async (req, res, next) => {
+  try {
+    const prisma = (await import('../config/db.js')).default;
+    const creditNotes = await prisma.creditNote.findMany({
+      where: { quotationId: req.params.quotationId },
+      orderBy: { issuedAt: 'desc' },
+    });
+    res.json(creditNotes);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

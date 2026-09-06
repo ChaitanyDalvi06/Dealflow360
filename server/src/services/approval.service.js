@@ -41,7 +41,7 @@ export async function routeForApproval(quotationId, submitterId) {
     return { approved: true, level: 'NONE', blendedScore, marginBreach: false };
   }
 
-  // Create initial approval step: Sales Manager is always first in the chain
+  // Create approval steps: Sales Manager is always first, followed by Finance if high risk/margin floor breached
   const steps = [
     {
       quotationId,
@@ -49,6 +49,14 @@ export async function routeForApproval(quotationId, submitterId) {
       status: 'PENDING',
     },
   ];
+
+  if (level === 'FINANCE') {
+    steps.push({
+      quotationId,
+      approverRole: 'FINANCE',
+      status: 'PENDING',
+    });
+  }
 
   // Clear any existing pending steps (in case of re-submission)
   await prisma.approvalStep.deleteMany({
@@ -64,8 +72,8 @@ export async function routeForApproval(quotationId, submitterId) {
   });
 
   const reason = marginBreach
-    ? `Gross margin ${marginPct.toFixed(1)}% is below company minimum floor (${minMarginFloor}%). Direct Finance escalation required.`
-    : `Blended risk score ${blendedScore} requires ${level} approval`;
+    ? `Gross margin ${marginPct.toFixed(1)}% is below company minimum floor (${minMarginFloor}%). Multi-tier escalation (Sales Manager + Finance) required.`
+    : `Blended risk score ${blendedScore} requires ${level === 'FINANCE' ? 'Sales Manager + Finance' : 'Sales Manager'} approval`;
 
   await createAuditLog({
     entityType: 'Quotation',
@@ -120,7 +128,7 @@ export async function processApproval(quotationId, approverId, approverRole, act
   });
 
   if (action === 'REJECTED') {
-    // Set status to NEEDS_REVISION (not REJECTED) — rep can rework and resubmit
+    // Set status to NEEDS_REVISION — rep can rework and resubmit
     await prisma.quotation.update({
       where: { id: quotationId },
       data: { status: 'NEEDS_REVISION' },
@@ -151,47 +159,53 @@ export async function processApproval(quotationId, approverId, approverRole, act
     return { status: 'RETURNED' };
   }
 
-  // APPROVED — Manager is the sole gatekeeper. Manager approval = fully approved.
+  // Check if there are remaining pending steps in the multi-tier chain
   if (action === 'APPROVED') {
-    // Sales Manager or Admin approval fully approves the quotation
-    if (approverRole === 'SALES_MANAGER' || approverRole === 'ADMIN') {
+    const remainingSteps = await prisma.approvalStep.findMany({
+      where: { quotationId, status: 'PENDING' },
+    });
+
+    if (remainingSteps.length > 0 && approverRole !== 'ADMIN') {
+      // Multi-tier chain: Manager approved, now escalate to Finance
+      const nextRole = remainingSteps[0].approverRole;
+      const nextStatus = nextRole === 'FINANCE' ? 'PENDING_FINANCE' : 'PENDING_MANAGER';
+
       await prisma.quotation.update({
         where: { id: quotationId },
-        data: { status: 'APPROVED' },
+        data: { status: nextStatus },
       });
 
       await createAuditLog({
         entityType: 'Quotation',
         entityId: quotationId,
         actorId: approverId,
-        action: 'APPROVAL_FULLY_APPROVED',
-        reason: `${approverRole === 'SALES_MANAGER' ? 'Sales Manager' : 'Admin'} approved ("${reason || 'Approved'}"). Quotation is fully approved and ready for invoicing.`,
-        metadata: { approverRole },
+        action: 'APPROVAL_STEP_APPROVED',
+        reason: `Sales Manager approved ("${reason || 'Approved'}"). Escaping to ${nextRole} for second-tier high risk clearance.`,
+        metadata: { approverRole, nextApprover: nextRole },
       });
 
-      // Dispatch notifications to everyone (Admin, Manager, Rep, Buyer, Finance)
-      await triggerApprovalNotifications(quotationId, approverRole, approverId, reason);
-
-      return { status: 'APPROVED' };
+      return { status: nextStatus, nextApprover: nextRole };
     }
 
-    // Default: check remaining pending steps
-    const remainingSteps = await prisma.approvalStep.findMany({
-      where: { quotationId, status: 'PENDING' },
+    // Final approval (all steps completed or ADMIN override)
+    await prisma.quotation.update({
+      where: { id: quotationId },
+      data: { status: 'APPROVED' },
     });
 
-    if (remainingSteps.length === 0) {
-      await prisma.quotation.update({
-        where: { id: quotationId },
-        data: { status: 'APPROVED' },
-      });
+    await createAuditLog({
+      entityType: 'Quotation',
+      entityId: quotationId,
+      actorId: approverId,
+      action: 'APPROVAL_FULLY_APPROVED',
+      reason: `${approverRole === 'FINANCE' ? 'Finance' : approverRole === 'SALES_MANAGER' ? 'Sales Manager' : 'Admin'} approved ("${reason || 'Approved'}"). Quotation is fully approved and ready for invoicing/fulfillment.`,
+      metadata: { approverRole },
+    });
 
-      await triggerApprovalNotifications(quotationId, approverRole, approverId, reason);
+    // Dispatch notifications to everyone (Admin, Manager, Rep, Buyer, Finance)
+    await triggerApprovalNotifications(quotationId, approverRole, approverId, reason);
 
-      return { status: 'APPROVED' };
-    }
-
-    return { status: 'PENDING_MANAGER', nextApprover: remainingSteps[0].approverRole };
+    return { status: 'APPROVED' };
   }
 }
 

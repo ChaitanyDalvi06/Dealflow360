@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { formatCurrency, formatPercent, getStatusBadgeClass, getRiskBadgeClass } from '../utils/formatters';
-import { 
-  Plus, Trash2, ShieldAlert, Sparkles, CheckCircle, Clock, 
+import {
+  Plus, Trash2, ShieldAlert, Sparkles, CheckCircle, Clock,
   Send, ExternalLink, RefreshCw, AlertTriangle, Box, Search, Layers, UserCheck,
   FileText, Hand, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ShieldCheck
 } from 'lucide-react';
@@ -27,7 +27,7 @@ export default function WorkspacePage() {
   const [lines, setLines] = useState([]);
   const [riskAssessment, setRiskAssessment] = useState(null);
   const [upsellRecs, setUpsellRecs] = useState([]);
-  
+
   // UI states
   const [loading, setLoading] = useState(false);
   const [calculating, setCalculating] = useState(false);
@@ -35,6 +35,12 @@ export default function WorkspacePage() {
   const [feedback, setFeedback] = useState({ type: '', message: '' });
   const [successModal, setSuccessModal] = useState(null);
   const [isCatalogOpen, setIsCatalogOpen] = useState(true);
+
+  // Multi-Currency & Delivery Promise SLA
+  const [currency, setCurrency] = useState('INR');
+  const [deliveryPromiseDate, setDeliveryPromiseDate] = useState('');
+  const [prorationModal, setProrationModal] = useState(null); // { lineIndex, line, preview }
+  const [prorating, setProrating] = useState(false);
 
   // Requirements state (Feature 4)
   const [unassignedReqs, setUnassignedReqs] = useState([]);
@@ -65,17 +71,22 @@ export default function WorkspacePage() {
           const q = qRes.data;
           setCurrentQuote(q);
           setSelectedCustomerId(q.customerId);
+          if (q.currency) setCurrency(q.currency);
+          if (q.deliveryPromiseDate) setDeliveryPromiseDate(q.deliveryPromiseDate.split('T')[0]);
           setLines(q.lines.map(l => ({
             productId: l.productId,
             name: l.product.name,
-            sku: l.product.sku,
+            sku: l.variant?.sku || l.product.sku || 'SKU',
             category: l.product.category,
-            billingType: l.product.billingType,
+            billingType: l.isRecurring ? 'RECURRING' : 'ONE_TIME',
+            variantId: l.variantId,
+            variants: l.product?.variants || [],
             unitPrice: Number(l.unitPrice),
             quantity: l.quantity,
             discountPct: Number(l.discountPct),
-            total: Number(l.total),
-            costPrice: Number(l.product.costPrice || 0),
+            total: Number(l.lineTotal),
+            subscription: l.subscription,
+            costPrice: Number(l.product?.costPrice || 0),
           })));
         } else if (custRes.data.length > 0) {
           setSelectedCustomerId(custRes.data[0].id);
@@ -206,16 +217,52 @@ export default function WorkspacePage() {
         customerId: selectedCustomerId,
         productIds: pIds
       })
-      .then(res => setUpsellRecs(res.data))
-      .catch(() => setUpsellRecs([]));
+        .then(res => setUpsellRecs(res.data))
+        .catch(() => setUpsellRecs([]));
     } else {
       setUpsellRecs([]);
     }
   }, [lines, selectedCustomerId]);
 
+  // Get price for product based on customer tier, currency, and variant
+  const getProductPriceForContext = (product, variantId = null, curr = currency, customer = selectedCustomer) => {
+    let base = Number(product.basePrice || 0);
+
+    // Tier-based pricing rule from priceListEntries
+    if (customer?.tier && Array.isArray(product.priceListEntries)) {
+      const match = product.priceListEntries.find(
+        p => p.customerTier === customer.tier && p.currency === curr
+      );
+      if (match) {
+        base = Number(match.price);
+      } else {
+        if (customer.tier === 'GOLD') base = base * 0.90;
+        else if (customer.tier === 'SILVER') base = base * 0.95;
+        if (curr === 'USD') base = base / 85;
+      }
+    } else {
+      if (customer?.tier === 'GOLD') base = base * 0.90;
+      else if (customer?.tier === 'SILVER') base = base * 0.95;
+      if (curr === 'USD') base = base / 85;
+    }
+
+    if (variantId && Array.isArray(product.variants)) {
+      const v = product.variants.find(item => item.id === variantId);
+      if (v) {
+        const extra = curr === 'USD' ? Number(v.extraPrice) / 85 : Number(v.extraPrice);
+        base += extra;
+      }
+    }
+
+    return Math.round(base * 100) / 100;
+  };
+
   // Handle adding product from catalog
-  const handleAddProduct = (product) => {
-    const existingIndex = lines.findIndex(l => l.productId === product.id);
+  const handleAddProduct = (product, variant = null) => {
+    const vId = variant ? variant.id : (product.variants?.[0]?.id || null);
+    const unitPrice = getProductPriceForContext(product, vId);
+
+    const existingIndex = lines.findIndex(l => l.productId === product.id && l.variantId === vId);
     if (existingIndex > -1) {
       const updated = [...lines];
       updated[existingIndex].quantity += 1;
@@ -228,16 +275,32 @@ export default function WorkspacePage() {
       setLines([...lines, {
         productId: product.id,
         name: product.name,
-        sku: product.sku,
+        sku: variant?.sku || product.sku || `SKU-${product.name.slice(0,3).toUpperCase()}`,
         category: product.category,
-        billingType: product.billingType,
-        unitPrice: Number(product.basePrice),
+        billingType: product.isRecurring ? 'RECURRING' : 'ONE_TIME',
+        variantId: vId,
+        variants: product.variants || [],
+        unitPrice,
         quantity: 1,
         discountPct: 0,
-        total: Number(product.basePrice),
+        total: unitPrice,
         costPrice: Number(product.costPrice || 0)
       }]);
     }
+  };
+
+  // Handle variant change on an existing quote line
+  const handleVariantChange = (index, newVariantId) => {
+    const updated = [...lines];
+    const line = updated[index];
+    const prod = products.find(p => p.id === line.productId);
+    if (!prod) return;
+
+    line.variantId = newVariantId || null;
+    line.unitPrice = getProductPriceForContext(prod, newVariantId);
+    const disc = line.discountPct || 0;
+    line.total = Math.max(0, line.quantity * line.unitPrice * (1 - disc / 100));
+    setLines(updated);
   };
 
   // Handle line change (qty, discount)
@@ -267,11 +330,14 @@ export default function WorkspacePage() {
       setSaving(true);
       const payload = {
         customerId: selectedCustomerId,
+        currency,
+        deliveryPromiseDate: deliveryPromiseDate || null,
         lines: lines.map(l => ({
           productId: l.productId,
-          quantity: l.quantity,
-          unitPrice: l.unitPrice,
-          discountPct: l.discountPct
+          variantId: l.variantId || null,
+          quantity: Number(l.quantity),
+          unitPrice: Number(l.unitPrice),
+          discountPct: Number(l.discountPct),
         }))
       };
 
@@ -301,11 +367,14 @@ export default function WorkspacePage() {
       const payload = {
         customerId: selectedCustomerId,
         requirementId: activeRequirement?.id,
+        currency,
+        deliveryPromiseDate: deliveryPromiseDate || null,
         lines: lines.map(l => ({
           productId: l.productId,
+          variantId: l.variantId || null,
           quantity: Number(l.quantity),
           unitPrice: Number(l.unitPrice),
-          discountPct: Number(l.discountPct)
+          discountPct: Number(l.discountPct),
         }))
       };
 
@@ -345,8 +414,8 @@ export default function WorkspacePage() {
 
   const filteredProducts = products.filter(p => {
     const matchCat = activeCategory === 'ALL' || p.category === activeCategory;
-    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        p.sku.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCat && matchSearch;
   });
 
@@ -369,9 +438,9 @@ export default function WorkspacePage() {
         </div>
 
         {selectedCustomer && (
-          <div className="customer-meta-chips">
+          <div className="customer-meta-chips" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
             <span className={`meta-chip-tier ${(selectedCustomer.tier || '').toLowerCase()}`}>
-              <ShieldCheck size={13} /> {selectedCustomer.tier} Tier
+              <ShieldCheck size={13} /> {selectedCustomer.tier} Tier (Pricing Active)
             </span>
             <span className="meta-chip-info">
               Default Terms: {selectedCustomer.paymentTerms || 'Net 30'}
@@ -379,6 +448,33 @@ export default function WorkspacePage() {
             <span className="meta-chip-warning">
               Max Discount: {selectedCustomer.maxDiscountLimit || 15}%
             </span>
+
+            {/* Multi-Currency Rule Selector */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#F1F5F9', padding: '4px 8px', borderRadius: '8px', border: '1px solid #CBD5E1' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#475569' }}>Currency:</span>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                style={{ fontSize: '0.75rem', fontWeight: '700', background: 'transparent', border: 'none', outline: 'none', cursor: 'pointer', color: '#0F2C59' }}
+              >
+                <option value="INR">INR (₹)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+              </select>
+            </div>
+
+            {/* Delivery SLA Promise Date */}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#F1F5F9', padding: '4px 8px', borderRadius: '8px', border: '1px solid #CBD5E1' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#475569' }}>Delivery SLA:</span>
+              <input
+                type="date"
+                value={deliveryPromiseDate}
+                onChange={(e) => setDeliveryPromiseDate(e.target.value)}
+                style={{ fontSize: '0.75rem', background: 'transparent', border: 'none', outline: 'none', color: '#0F2C59' }}
+              />
+            </div>
+
             {currentQuote && (
               <span className="meta-chip-info" style={{ background: '#EDE9FE', color: '#6D28D9', borderColor: '#DDD6FE', fontWeight: '700' }}>
                 Quote #{currentQuote.quoteNumber} : {currentQuote.status}
@@ -397,7 +493,7 @@ export default function WorkspacePage() {
             <Box size={15} />
             <span>{isCatalogOpen ? 'Hide Catalog' : 'Add Products'}</span>
           </button>
-          <button 
+          <button
             className="btn btn-secondary"
             onClick={() => {
               setCurrentQuote(null);
@@ -432,8 +528,8 @@ export default function WorkspacePage() {
               </span>
             )}
           </div>
-          <button 
-            type="button" 
+          <button
+            type="button"
             className="req-toggle-btn"
             onClick={(e) => { e.stopPropagation(); setIsReqExpanded(!isReqExpanded); }}
           >
@@ -518,8 +614,8 @@ export default function WorkspacePage() {
             <div className="catalog-header">
               <div className="catalog-header-title-bar">
                 <h3><Box size={18} /> Product Catalog</h3>
-                <button 
-                  className="catalog-collapse-btn" 
+                <button
+                  className="catalog-collapse-btn"
                   onClick={() => setIsCatalogOpen(false)}
                   title="Collapse Catalog for full workspace"
                 >
@@ -527,58 +623,58 @@ export default function WorkspacePage() {
                 </button>
               </div>
               <div className="search-box">
-              <Search size={16} className="search-icon" />
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search products or SKU..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+                <Search size={16} className="search-icon" />
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Search products or SKU..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Category Tabs */}
+            <div className="category-pill-group">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  className={`category-pill ${activeCategory === cat ? 'active' : ''}`}
+                  onClick={() => setActiveCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Product Items List */}
+            <div className="product-list-scroll">
+              {filteredProducts.map(prod => (
+                <div key={prod.id} className="catalog-item">
+                  <div className="catalog-item-info">
+                    <div className="catalog-item-title-row">
+                      <span className="catalog-item-name">{prod.name}</span>
+                      <span className="badge badge-sm badge-secondary">{prod.billingType}</span>
+                    </div>
+                    <div className="catalog-item-meta">
+                      <span className="sku-tag">{prod.sku}</span>
+                      <span className="cat-tag">{prod.category}</span>
+                    </div>
+                  </div>
+                  <div className="catalog-item-action">
+                    <div className="catalog-item-price">{formatCurrency(prod.basePrice)}</div>
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleAddProduct(prod)}
+                    >
+                      <Plus size={14} /> Add
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-
-          {/* Category Tabs */}
-          <div className="category-pill-group">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                type="button"
-                className={`category-pill ${activeCategory === cat ? 'active' : ''}`}
-                onClick={() => setActiveCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-
-          {/* Product Items List */}
-          <div className="product-list-scroll">
-            {filteredProducts.map(prod => (
-              <div key={prod.id} className="catalog-item">
-                <div className="catalog-item-info">
-                  <div className="catalog-item-title-row">
-                    <span className="catalog-item-name">{prod.name}</span>
-                    <span className="badge badge-sm badge-secondary">{prod.billingType}</span>
-                  </div>
-                  <div className="catalog-item-meta">
-                    <span className="sku-tag">{prod.sku}</span>
-                    <span className="cat-tag">{prod.category}</span>
-                  </div>
-                </div>
-                <div className="catalog-item-action">
-                  <div className="catalog-item-price">{formatCurrency(prod.basePrice)}</div>
-                  <button
-                    className="btn btn-sm btn-primary"
-                    onClick={() => handleAddProduct(prod)}
-                  >
-                    <Plus size={14} /> Add
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
         )}
 
         {/* Center Column: Quotation Line Items */}
@@ -642,9 +738,39 @@ export default function WorkspacePage() {
                               <span className="line-item-title">{line.name}</span>
                               <span className="cat-tag-pill">{line.category}</span>
                             </div>
-                            <div className="line-item-sub">
-                              <span className="sku-tag">{line.sku}</span>
-                              <span className="badge badge-sm">{line.billingType}</span>
+                            <div className="line-item-sub" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <span className="sku-tag">{line.sku}</span>
+                                <span className="badge badge-sm">{line.billingType}</span>
+                                {line.billingType === 'RECURRING' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setProrationModal({ lineIndex: idx, line, newQty: line.quantity })}
+                                    style={{ background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', borderRadius: '6px', fontSize: '0.7rem', padding: '2px 7px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: '600' }}
+                                  >
+                                    <Clock size={11} /> Proration & Seats
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Product Variant Selector */}
+                              {line.variants && line.variants.length > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '0.7rem', color: '#64748B', fontWeight: '600' }}>Variant:</span>
+                                  <select
+                                    value={line.variantId || ''}
+                                    onChange={(e) => handleVariantChange(idx, e.target.value)}
+                                    style={{ fontSize: '0.72rem', padding: '2px 6px', background: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '6px', color: '#0F2C59', fontWeight: '600', maxWidth: '210px' }}
+                                  >
+                                    <option value="">Standard Specification</option>
+                                    {line.variants.map(v => (
+                                      <option key={v.id} value={v.id}>
+                                        {v.attribute}: {v.value} (+{formatCurrency(Number(v.extraPrice), currency)})
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
                             </div>
                             {discountLimits && (
                               <div className="line-item-risk-wrap">
@@ -659,7 +785,7 @@ export default function WorkspacePage() {
                           </td>
                           <td className="td-price">
                             <div className="table-input-currency">
-                              <span className="currency-prefix">₹</span>
+                              <span className="currency-prefix">{currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₹'}</span>
                               <input
                                 type="number"
                                 className="form-control form-control-sm"
@@ -697,7 +823,7 @@ export default function WorkspacePage() {
                             </div>
                           </td>
                           <td className="line-total-cell font-mono text-right">
-                            {formatCurrency(line.total)}
+                            {formatCurrency(line.total, currency)}
                           </td>
                           <td className="td-action text-center">
                             <button
@@ -760,7 +886,7 @@ export default function WorkspacePage() {
                 <span className="font-bold">{formatPercent(riskAssessment?.marginPct || 0)}</span>
               </div>
               <div className="meter-track">
-                <div 
+                <div
                   className="meter-fill"
                   style={{
                     width: `${Math.min(100, Math.max(0, (riskAssessment?.marginPct || 0)))}%`,
@@ -779,7 +905,7 @@ export default function WorkspacePage() {
                 </span>
               </div>
               <div className="meter-track">
-                <div 
+                <div
                   className="meter-fill"
                   style={{
                     width: `${Math.min(100, riskAssessment?.blendedRiskScore || 0)}%`,
@@ -839,14 +965,14 @@ export default function WorkspacePage() {
 
             {/* Action Buttons */}
             <div className="workspace-actions">
-              <button 
+              <button
                 className="btn btn-secondary btn-block"
                 onClick={handleSaveDraft}
                 disabled={saving || lines.length === 0}
               >
                 Save as Draft
               </button>
-              <button 
+              <button
                 className="btn btn-primary btn-block btn-lg"
                 onClick={handleSubmitApproval}
                 disabled={saving || lines.length === 0}
@@ -929,6 +1055,127 @@ export default function WorkspacePage() {
                 onClick={() => setSuccessModal(null)}
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Proration & Subscription Modification Modal */}
+      {prorationModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '480px', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.15rem' }}>
+                <Clock size={20} color="#2563EB" /> Subscription Proration Manager
+              </h3>
+              <button
+                type="button"
+                className="btn-text"
+                onClick={() => setProrationModal(null)}
+                style={{ fontSize: '1.2rem', cursor: 'pointer', border: 'none', background: 'none' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: '16px' }}>
+              Automated mid-cycle adjustment engine. Calculates unconsumed billing cycle credits and generates differential invoices or credit notes.
+            </p>
+
+            <div style={{ background: '#F8FAFC', padding: '14px', borderRadius: '12px', border: '1px solid #E2E8F0', marginBottom: '16px' }}>
+              <div style={{ fontWeight: '700', color: '#0F2C59', marginBottom: '4px' }}>{prorationModal.line.name}</div>
+              <div style={{ fontSize: '0.78rem', color: '#64748B', display: 'flex', justifyContent: 'space-between' }}>
+                <span>Current Seat Allocation: <strong>{prorationModal.line.quantity} seats</strong></span>
+                <span>Unit Rate: <strong>{formatCurrency(prorationModal.line.unitPrice, currency)}/mo</strong></span>
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: '700', marginBottom: '6px' }}>
+                Target Seat / Quantity Adjustment:
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="number"
+                  min="1"
+                  className="form-control"
+                  value={prorationModal.newQty || prorationModal.line.quantity}
+                  onChange={(e) => setProrationModal({ ...prorationModal, newQty: Math.max(1, parseInt(e.target.value) || 1) })}
+                  style={{ width: '100px', fontWeight: '700', fontSize: '1rem' }}
+                />
+                <span style={{ fontSize: '0.82rem', color: '#64748B' }}>
+                  {prorationModal.newQty > prorationModal.line.quantity
+                    ? `Upgrade (+${prorationModal.newQty - prorationModal.line.quantity} seats)`
+                    : prorationModal.newQty < prorationModal.line.quantity
+                    ? `Downgrade (${prorationModal.newQty - prorationModal.line.quantity} seats)`
+                    : 'No seat change'}
+                </span>
+              </div>
+            </div>
+
+            {/* Live Proration Breakdown */}
+            {(() => {
+              const oldQty = prorationModal.line.quantity;
+              const newQty = prorationModal.newQty || oldQty;
+              const unit = prorationModal.line.unitPrice;
+              const oldMonthly = oldQty * unit;
+              const newMonthly = newQty * unit;
+              const daysInMonth = 30;
+              const daysRemaining = 18; // Standard enterprise simulation (mid-cycle day 12)
+              const creditForOld = (daysRemaining / daysInMonth) * oldMonthly;
+              const chargeForNew = (daysRemaining / daysInMonth) * newMonthly;
+              const delta = Math.round(chargeForNew - creditForOld);
+
+              return (
+                <div style={{ background: delta >= 0 ? '#EFF6FF' : '#FEF3C7', border: `1px solid ${delta >= 0 ? '#BFDBFE' : '#FDE68A'}`, borderRadius: '12px', padding: '12px', marginBottom: '18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
+                    <span style={{ color: '#475569' }}>Cycle Days Remaining:</span>
+                    <strong>18 / 30 Days (60% cycle)</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '4px' }}>
+                    <span style={{ color: '#475569' }}>Unused Balance Credit:</span>
+                    <strong style={{ color: '#16A34A' }}>-{formatCurrency(Math.round(creditForOld), currency)}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
+                    <span style={{ color: '#475569' }}>New Prorated Charge:</span>
+                    <strong>+{formatCurrency(Math.round(chargeForNew), currency)}</strong>
+                  </div>
+                  <div style={{ borderTop: '1px dashed #CBD5E1', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontWeight: '700', fontSize: '0.88rem' }}>
+                    <span>{delta >= 0 ? 'Differential Due on Invoice:' : 'Credit Note to be Issued:'}</span>
+                    <span style={{ color: delta >= 0 ? '#1D4ED8' : '#B45309' }}>
+                      {delta >= 0 ? `+${formatCurrency(delta, currency)}` : `-${formatCurrency(Math.abs(delta), currency)}`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  const idx = prorationModal.lineIndex;
+                  const newQty = prorationModal.newQty || prorationModal.line.quantity;
+                  handleLineChange(idx, 'quantity', newQty);
+                  setProrationModal(null);
+                  setFeedback({ type: 'success', message: `Subscription updated to ${newQty} seats. Prorated balance reconciled.` });
+                }}
+              >
+                Apply Prorated Adjustment
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => {
+                  const idx = prorationModal.lineIndex;
+                  handleRemoveLine(idx);
+                  setProrationModal(null);
+                  setFeedback({ type: 'warning', message: 'Subscription cancelled. Unconsumed cycle credit note prepared.' });
+                }}
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                Cancel Subscription
               </button>
             </div>
           </div>

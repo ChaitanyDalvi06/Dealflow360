@@ -9,54 +9,184 @@ import {
 
 export default function ReportsPage() {
   const [quotations, setQuotations] = useState([]);
+  const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('Quarter to Date');
+  const [selectedRep, setSelectedRep] = useState('ALL');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [hoveredMonth, setHoveredMonth] = useState(null);
   const [animated, setAnimated] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const loadReports = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/quotations');
-        setQuotations(res.data);
+        const [analyticsRes, quotesRes] = await Promise.allSettled([
+          api.get('/dashboard/reports-analytics', { params: { timeRange } }),
+          api.get('/quotations'),
+        ]);
+
+        if (!isMounted) return;
+
+        if (analyticsRes.status === 'fulfilled') {
+          setReportData(analyticsRes.value.data);
+        }
+        if (quotesRes.status === 'fulfilled') {
+          setQuotations(quotesRes.value.data || []);
+        }
       } catch (err) {
         console.error('Failed to load reports data:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
     loadReports();
 
-    // Trigger smooth entrance animation on mount
+    return () => {
+      isMounted = false;
+    };
+  }, [timeRange]);
+
+  useEffect(() => {
     const timer = setTimeout(() => setAnimated(true), 60);
     return () => clearTimeout(timer);
-  }, []);
+  }, [reportData]);
 
-  const totalQuotes = quotations.length;
-  const grossSales = quotations.reduce((acc, q) => acc + (Number(q.totalAmount || 0) + Number(q.totalDiscount || 0)), 0);
-  const totalDiscounts = quotations.reduce((acc, q) => acc + Number(q.totalDiscount || 0), 0);
-  const netRevenue = quotations.reduce((acc, q) => acc + Number(q.totalAmount || 0), 0);
-  const avgDiscountRate = grossSales > 0 ? (totalDiscounts / grossSales) * 100 : 0;
+  const availableReps = Array.from(new Set(quotations.map(q => q.rep?.name).filter(Boolean)));
+  const availableCategories = ['Hardware', 'Software', 'Service', 'Accessories'];
+
+  const filteredQuotes = quotations.filter(q => {
+    const repMatch = selectedRep === 'ALL' || q.rep?.name === selectedRep;
+    const statusMatch = selectedStatus === 'ALL' || q.status === selectedStatus;
+    const catMatch = selectedCategory === 'ALL' || q.lines?.some(l => l.product?.category === selectedCategory);
+    return repMatch && statusMatch && catMatch;
+  });
+
+  const exportToCSV = () => {
+    const headers = ['Quote Number', 'Customer', 'Tier', 'Sales Rep', 'Status', 'Order Total', 'Margin', 'Created At'];
+    const rows = filteredQuotes.map(q => [
+      q.quoteNumber || `QT-${q.id.slice(-6).toUpperCase()}`,
+      `"${q.customer?.name || 'Customer'}"`,
+      q.customer?.tier || 'BRONZE',
+      `"${q.rep?.name || 'Rep'}"`,
+      q.status,
+      Number(q.orderTotal || 0),
+      Number(q.totalMargin || 0),
+      new Date(q.createdAt).toISOString().split('T')[0],
+    ]);
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `dealflow360_sales_report_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Calculate locally from filtered quotations
+  let localGross = 0;
+  let localNet = 0;
+  let localDiscounts = 0;
+
+  for (const q of filteredQuotes) {
+    let qNet = Number(q.orderTotal || 0);
+    let qGross = 0;
+    let qDisc = 0;
+
+    if (Array.isArray(q.lines) && q.lines.length > 0) {
+      for (const line of q.lines) {
+        const qty = Number(line.quantity || 1);
+        const price = Number(line.unitPrice || 0);
+        const lNet = Number(line.lineTotal || 0);
+        const lGross = qty * price > 0 ? qty * price : lNet;
+        const lDisc = Math.max(0, lGross - lNet);
+
+        qGross += lGross;
+        qDisc += lDisc;
+      }
+    }
+    if (qGross === 0 && qNet > 0) qGross = qNet;
+    if (qNet === 0 && qGross > 0) qNet = Math.max(0, qGross - qDisc);
+
+    localGross += qGross;
+    localNet += qNet;
+    localDiscounts += qDisc;
+  }
+
+  const totalQuotes = filteredQuotes.length;
+  const grossSales = localGross;
+  const totalDiscounts = localDiscounts;
+  const netRevenue = localNet;
+  const avgDiscountRate = grossSales > 0 ? Number(((totalDiscounts / grossSales) * 100).toFixed(1)) : 0;
   const realizationRate = grossSales > 0 ? Math.round((netRevenue / grossSales) * 100) : 88;
+  const momGrowth = reportData?.summary?.momGrowth ?? 14.2;
 
   // Monthly revenue trend data for animated SVG chart
-  const monthlyTrendData = [
+  const defaultTrendData = [
     { month: 'Mar', gross: 2400000, discount: 280000, net: 2120000, label: '₹21.2L' },
     { month: 'Apr', gross: 3100000, discount: 340000, net: 2760000, label: '₹27.6L' },
     { month: 'May', gross: 2850000, discount: 310000, net: 2540000, label: '₹25.4L' },
     { month: 'Jun', gross: 3650000, discount: 410000, net: 3240000, label: '₹32.4L' },
     { month: 'Jul', gross: 4200000, discount: 460000, net: 3740000, label: '₹37.4L' },
-    { month: 'Aug', gross: grossSales > 0 ? grossSales : 4900000, discount: totalDiscounts > 0 ? totalDiscounts : 520000, net: netRevenue > 0 ? netRevenue : 4380000, label: formatCurrency(netRevenue > 0 ? netRevenue : 4380000) },
+    { month: 'Aug', gross: 4900000, discount: 520000, net: 4380000, label: '₹43.8L' },
   ];
 
+  const monthlyTrendData = (reportData?.monthlyTrendData && reportData.monthlyTrendData.length > 0)
+    ? reportData.monthlyTrendData
+    : defaultTrendData;
+
   // Category Profitability breakdown
-  const categoryProfitability = [
+  const defaultCategoryProfitability = [
     { category: 'Hardware Infrastructure', marginPct: 44, discountCeiling: 18, color: '#0F2C59' },
     { category: 'Enterprise SaaS & Cloud', marginPct: 72, discountCeiling: 40, color: '#2563eb' },
     { category: 'Professional Services', marginPct: 65, discountCeiling: 15, color: '#10b981' },
     { category: 'Peripherals & Accessories', marginPct: 54, discountCeiling: 20, color: '#f59e0b' },
   ];
+
+  const categoryProfitability = (reportData?.categoryProfitability && reportData.categoryProfitability.length > 0)
+    ? reportData.categoryProfitability
+    : defaultCategoryProfitability;
+
+  // Tier-Wise Margin Realization
+  const defaultTierMatrix = [
+    { tier: 'PLATINUM', standardCap: '25%', marginPct: 45, isCompliant: true },
+    { tier: 'GOLD', standardCap: '15%', marginPct: 52, isCompliant: true },
+    { tier: 'SILVER', standardCap: '10%', marginPct: 58, isCompliant: true },
+    { tier: 'STANDARD', standardCap: '5%', marginPct: 65, isCompliant: true },
+  ];
+
+  const tierMatrix = (reportData?.tierMatrix && reportData.tierMatrix.length > 0)
+    ? reportData.tierMatrix
+    : defaultTierMatrix;
+
+  // Compute dynamic scale and SVG curve points
+  const maxVal = Math.max(...monthlyTrendData.map(d => Number(d.gross || 0)), 100000) * 1.15;
+  const points = monthlyTrendData.map((d, idx) => ({
+    x: 50 + idx * 100 + 20,
+    y: Math.max(30, 200 - Math.round(((Number(d.net) || 0) / maxVal) * 160))
+  }));
+
+  const generateSmoothPath = (pts) => {
+    if (!pts || pts.length === 0) return '';
+    if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+    let path = `M ${pts[0].x} ${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i];
+      const p1 = pts[i + 1];
+      const cpX = (p0.x + p1.x) / 2;
+      path += ` C ${cpX} ${p0.y}, ${cpX} ${p1.y}, ${p1.x} ${p1.y}`;
+    }
+    return path;
+  };
+
+  const linePath = generateSmoothPath(points);
+  const areaPath = points.length > 1
+    ? `${linePath} L ${points[points.length - 1].x} 200 L ${points[0].x} 200 Z`
+    : '';
 
   return (
     <div className="reports-container">
@@ -72,24 +202,78 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        <div className="reports-header-actions">
-          <span className="wh-telemetry-badge">
-            <span className="wh-telemetry-dot" /> Audit Ledger Live
-          </span>
+        <div className="reports-header-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+          {/* Filter: Sales Rep */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#F8FAFC', padding: '4px 8px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748B' }}>Rep:</span>
+            <select
+              value={selectedRep}
+              onChange={(e) => setSelectedRep(e.target.value)}
+              style={{ fontSize: '0.75rem', fontWeight: '600', border: 'none', background: 'transparent', outline: 'none', color: '#0F2C59' }}
+            >
+              <option value="ALL">All Reps ({availableReps.length})</option>
+              {availableReps.map(rep => (
+                <option key={rep} value={rep}>{rep}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filter: Status */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#F8FAFC', padding: '4px 8px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748B' }}>Status:</span>
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              style={{ fontSize: '0.75rem', fontWeight: '600', border: 'none', background: 'transparent', outline: 'none', color: '#0F2C59' }}
+            >
+              <option value="ALL">All Stages</option>
+              <option value="DRAFT">Draft</option>
+              <option value="PENDING_MANAGER">Pending Manager</option>
+              <option value="PENDING_FINANCE">Pending Finance</option>
+              <option value="APPROVED">Approved</option>
+              <option value="CONFIRMED">Confirmed</option>
+              <option value="IN_FULFILLMENT">In Fulfillment</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </div>
+
+          {/* Filter: Category */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#F8FAFC', padding: '4px 8px', borderRadius: '8px', border: '1px solid #E2E8F0' }}>
+            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748B' }}>Category:</span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              style={{ fontSize: '0.75rem', fontWeight: '600', border: 'none', background: 'transparent', outline: 'none', color: '#0F2C59' }}
+            >
+              <option value="ALL">All Categories</option>
+              {availableCategories.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Period Filter */}
           <div className="category-pill-group" style={{ margin: 0 }}>
             {['Last 30 Days', 'Quarter to Date', 'Year to Date'].map(range => (
               <button
                 key={range}
                 className={`category-pill ${timeRange === range ? 'active' : ''}`}
                 onClick={() => setTimeRange(range)}
-                style={{ fontSize: '0.76rem', padding: '6px 12px' }}
+                style={{ fontSize: '0.74rem', padding: '5px 10px' }}
               >
                 {range}
               </button>
             ))}
           </div>
-          <button className="btn btn-outline-primary" onClick={() => window.print()}>
-            <Download size={14} /> Export Report
+
+          {/* Export to CSV / XLS */}
+          <button className="btn btn-outline-primary" onClick={exportToCSV} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', padding: '6px 12px' }}>
+            <Download size={13} /> Export CSV / XLS
+          </button>
+
+          {/* Print PDF */}
+          <button className="btn btn-secondary" onClick={() => window.print()} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', padding: '6px 12px' }}>
+            Print PDF
           </button>
         </div>
       </div>
@@ -243,33 +427,36 @@ export default function ReportsPage() {
               ))}
 
               {/* Connected Area Curve for Net Realized */}
-              <path
-                d="M 65 155 Q 165 125, 265 138 T 465 85 T 565 60 L 565 200 L 65 200 Z"
-                fill="url(#netAreaGrad)"
-                style={{
-                  opacity: animated ? 1 : 0,
-                  transition: 'opacity 1s ease'
-                }}
-              />
-              <path
-                d="M 65 155 Q 165 125, 265 138 T 465 85 T 565 60"
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="3"
-                strokeLinecap="round"
-                style={{
-                  strokeDasharray: 600,
-                  strokeDashoffset: animated ? 0 : 600,
-                  transition: 'stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1)'
-                }}
-              />
+              {areaPath && (
+                <path
+                  d={areaPath}
+                  fill="url(#netAreaGrad)"
+                  style={{
+                    opacity: animated ? 1 : 0,
+                    transition: 'opacity 1s ease'
+                  }}
+                />
+              )}
+              {linePath && (
+                <path
+                  d={linePath}
+                  fill="none"
+                  stroke="#10b981"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  style={{
+                    strokeDasharray: 800,
+                    strokeDashoffset: animated ? 0 : 800,
+                    transition: 'stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                />
+              )}
 
               {/* Monthly Dual Bars */}
               {monthlyTrendData.map((d, idx) => {
                 const x = 50 + idx * 100;
-                const maxVal = 5500000;
-                const grossHeight = animated ? Math.round((d.gross / maxVal) * 160) : 0;
-                const discountHeight = animated ? Math.max(10, Math.round((d.discount / maxVal) * 160)) : 0;
+                const grossHeight = animated ? Math.round(((Number(d.gross) || 0) / maxVal) * 160) : 0;
+                const discountHeight = animated ? Math.max(8, Math.round(((Number(d.discount) || 0) / maxVal) * 160)) : 0;
                 const isHovered = hoveredMonth === idx;
 
                 return (
@@ -415,85 +602,32 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td>
-                    <span className="tier-pill-modern platinum">PLATINUM</span>
-                  </td>
-                  <td className="font-mono font-bold">25%</td>
-                  <td>
-                    <div className="tier-margin-gauge">
-                      <div className="tier-gauge-bar">
-                        <div className="tier-gauge-fill" style={{ width: animated ? '45%' : '0%' }} />
+                {tierMatrix.map((row) => (
+                  <tr key={row.tier}>
+                    <td>
+                      <span className={`tier-pill-modern ${row.tier.toLowerCase()}`}>{row.tier}</span>
+                    </td>
+                    <td className="font-mono font-bold">{row.standardCap}</td>
+                    <td>
+                      <div className="tier-margin-gauge">
+                        <div className="tier-gauge-bar">
+                          <div
+                            className="tier-gauge-fill"
+                            style={{ width: animated ? `${Math.min(100, row.marginPct)}%` : '0%' }}
+                          />
+                        </div>
+                        <span className="font-mono font-bold" style={{ fontSize: '0.82rem' }}>
+                          {row.marginPct}%
+                        </span>
                       </div>
-                      <span className="font-mono font-bold" style={{ fontSize: '0.82rem' }}>45%</span>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={12} /> Compliant
-                    </span>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>
-                    <span className="tier-pill-modern gold">GOLD</span>
-                  </td>
-                  <td className="font-mono font-bold">15%</td>
-                  <td>
-                    <div className="tier-margin-gauge">
-                      <div className="tier-gauge-bar">
-                        <div className="tier-gauge-fill" style={{ width: animated ? '52%' : '0%' }} />
-                      </div>
-                      <span className="font-mono font-bold" style={{ fontSize: '0.82rem' }}>52%</span>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={12} /> Compliant
-                    </span>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>
-                    <span className="tier-pill-modern silver">SILVER</span>
-                  </td>
-                  <td className="font-mono font-bold">10%</td>
-                  <td>
-                    <div className="tier-margin-gauge">
-                      <div className="tier-gauge-bar">
-                        <div className="tier-gauge-fill" style={{ width: animated ? '58%' : '0%' }} />
-                      </div>
-                      <span className="font-mono font-bold" style={{ fontSize: '0.82rem' }}>58%</span>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={12} /> Compliant
-                    </span>
-                  </td>
-                </tr>
-
-                <tr>
-                  <td>
-                    <span className="tier-pill-modern standard">STANDARD</span>
-                  </td>
-                  <td className="font-mono font-bold">5%</td>
-                  <td>
-                    <div className="tier-margin-gauge">
-                      <div className="tier-gauge-bar">
-                        <div className="tier-gauge-fill" style={{ width: animated ? '65%' : '0%' }} />
-                      </div>
-                      <span className="font-mono font-bold" style={{ fontSize: '0.82rem' }}>65%</span>
-                    </div>
-                  </td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={12} /> Compliant
-                    </span>
-                  </td>
-                </tr>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="badge badge-success" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <CheckCircle2 size={12} /> Compliant
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

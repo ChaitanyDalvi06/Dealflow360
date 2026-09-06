@@ -68,10 +68,24 @@ model Product {
   createdAt   DateTime @default(now())
 
   priceListEntries PriceListEntry[]
+  variants         ProductVariant[]
   quotationLines   QuotationLine[]
   stockLevels      StockLevel[]
   subscriptionPlan SubscriptionPlan?
   orderHistory     OrderHistory[]
+}
+
+model ProductVariant {
+  id         String   @id @default(uuid())
+  productId  String
+  attribute  String   // e.g. "Storage", "Pack Size", "License Tier", "Seats"
+  value      String   // e.g. "512GB SSD", "1TB SSD", "Pack of 5", "Enterprise"
+  extraPrice Decimal  @default(0) @db.Decimal(12, 2)
+  sku        String?
+  createdAt  DateTime @default(now())
+
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quotationLines QuotationLine[]
 }
 
 model PriceListEntry {
@@ -110,17 +124,19 @@ model ApprovalConfig {
 // ─── QUOTATIONS ────────────────────────────────────────────
 
 model Quotation {
-  id               String          @id @default(uuid())
-  customerId       String
-  repId            String
-  requirementId    String?
-  status           QuotationStatus @default(DRAFT)
-  blendedRiskScore Decimal?        @db.Decimal(5, 2)
-  orderTotal       Decimal         @db.Decimal(12, 2) @default(0)
-  totalMargin      Decimal         @db.Decimal(12, 2) @default(0)
-  notes            String?
-  createdAt        DateTime        @default(now())
-  lastActivityAt   DateTime        @default(now()) @updatedAt
+  id                  String          @id @default(uuid())
+  customerId          String
+  repId               String
+  requirementId       String?
+  status              QuotationStatus @default(DRAFT)
+  currency            String          @default("INR")
+  deliveryPromiseDate DateTime?
+  blendedRiskScore    Decimal?        @db.Decimal(5, 2)
+  orderTotal          Decimal         @db.Decimal(12, 2) @default(0)
+  totalMargin         Decimal         @db.Decimal(12, 2) @default(0)
+  notes               String?
+  createdAt           DateTime        @default(now())
+  lastActivityAt      DateTime        @default(now()) @updatedAt
 
   customer        Customer           @relation(fields: [customerId], references: [id])
   rep             User               @relation(fields: [repId], references: [id])
@@ -129,6 +145,7 @@ model Quotation {
   approvalSteps   ApprovalStep[]
   warehouseSplits WarehouseSplit[]
   invoices        Invoice[]
+  creditNotes     CreditNote[]
   negotiations    NegotiationEvent[]
   auditLogs       AuditLog[]
 }
@@ -152,6 +169,7 @@ model QuotationLine {
   id          String  @id @default(uuid())
   quotationId String
   productId   String
+  variantId   String?
   quantity    Int     @default(1)
   unitPrice   Decimal @db.Decimal(12, 2)
   discountPct Decimal @db.Decimal(5, 2) @default(0)
@@ -160,9 +178,23 @@ model QuotationLine {
   isRecurring Boolean @default(false)
   comment     String?
 
-  quotation    Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  product      Product       @relation(fields: [productId], references: [id])
+  quotation    Quotation       @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  product      Product         @relation(fields: [productId], references: [id])
+  variant      ProductVariant? @relation(fields: [variantId], references: [id])
   subscription Subscription?
+}
+
+model CreditNote {
+  id             String   @id @default(uuid())
+  creditNumber   String   @unique
+  quotationId    String
+  subscriptionId String?
+  amount         Decimal  @db.Decimal(12, 2)
+  reason         String
+  status         String   @default("ISSUED") // ISSUED | APPLIED | REFUNDED
+  issuedAt       DateTime @default(now())
+
+  quotation Quotation @relation(fields: [quotationId], references: [id])
 }
 
 // ─── APPROVALS & AUDIT ─────────────────────────────────────

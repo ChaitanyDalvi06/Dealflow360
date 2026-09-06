@@ -160,6 +160,120 @@ export function calculateProration(lastBillingDate, nextBillingDate, changeDate,
 }
 
 /**
+ * Modifies subscription quantity with mid-cycle proration and automated credit note or prorated invoice.
+ */
+export async function modifySubscription(subscriptionId, newQuantity) {
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { quotationLine: { include: { product: true } } },
+  });
+
+  if (!subscription) throw new Error('Subscription not found');
+
+  const line = subscription.quotationLine;
+  const oldQuantity = line.quantity;
+  const unitPrice = Number(line.unitPrice);
+  const discountPct = Number(line.discountPct);
+  const discountedUnit = unitPrice * (1 - discountPct / 100);
+
+  const oldAmount = Number(line.lineTotal);
+  const newAmount = discountedUnit * newQuantity;
+
+  const now = new Date();
+  const proration = calculateProration(
+    subscription.startDate,
+    subscription.nextBillingDate,
+    now,
+    oldAmount,
+    newAmount
+  );
+
+  // Update quotationLine quantity & lineTotal
+  await prisma.quotationLine.update({
+    where: { id: line.id },
+    data: {
+      quantity: newQuantity,
+      lineTotal: Math.round(newAmount * 100) / 100,
+      lineMargin: Math.round((newAmount * (Number(line.product.margin) / 100)) * 100) / 100,
+    },
+  });
+
+  let invoice = null;
+  let creditNote = null;
+
+  if (proration.proratedAdjustment > 0) {
+    invoice = await prisma.invoice.create({
+      data: {
+        quotationId: line.quotationId,
+        type: 'RECURRING',
+        amount: proration.proratedAdjustment,
+        status: 'SENT',
+      },
+    });
+  } else if (proration.proratedAdjustment < 0) {
+    const creditAmt = Math.abs(proration.proratedAdjustment);
+    creditNote = await prisma.creditNote.create({
+      data: {
+        creditNumber: `CN-${Date.now().toString().slice(-6)}`,
+        quotationId: line.quotationId,
+        subscriptionId: subscription.id,
+        amount: creditAmt,
+        reason: `Mid-cycle subscription modification from ${oldQuantity} to ${newQuantity} units`,
+        status: 'ISSUED',
+      },
+    });
+  }
+
+  return { subscription, proration, invoice, creditNote };
+}
+
+/**
+ * Cancels a subscription and automatically generates a credit note for unconsumed cycle days.
+ */
+export async function cancelSubscription(subscriptionId, reason = 'Customer cancellation') {
+  const subscription = await prisma.subscription.findUnique({
+    where: { id: subscriptionId },
+    include: { quotationLine: true },
+  });
+
+  if (!subscription) throw new Error('Subscription not found');
+
+  await prisma.subscription.update({
+    where: { id: subscriptionId },
+    data: { status: 'CANCELLED' },
+  });
+
+  const now = new Date();
+  const line = subscription.quotationLine;
+  const oldAmount = Number(line.lineTotal);
+
+  const proration = calculateProration(
+    subscription.startDate,
+    subscription.nextBillingDate,
+    now,
+    oldAmount,
+    0
+  );
+
+  const refundCredit = proration.creditForOld;
+  let creditNote = null;
+  if (refundCredit > 0) {
+    creditNote = await prisma.creditNote.create({
+      data: {
+        creditNumber: `CN-${Date.now().toString().slice(-6)}`,
+        quotationId: line.quotationId,
+        subscriptionId: subscription.id,
+        amount: refundCredit,
+        reason: `Subscription cancellation: ${reason} (Refund for ${proration.daysRemaining} remaining days)`,
+        status: 'ISSUED',
+      },
+    });
+  }
+
+  return { subscription, creditNote, refundCredit, proration };
+}
+
+/**
  * Gets all invoices for a quotation with their payments.
  */
 export async function getInvoices(quotationId) {

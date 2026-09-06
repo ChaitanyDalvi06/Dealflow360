@@ -329,52 +329,7 @@ export default function PortalQuotePage() {
             </div>
           </div>
 
-          {/* Model 1: Enterprise Recommended Add-ons (Buyer UI Only) */}
-          {upsellAddons.length > 0 && (
-            <div style={{
-              margin: '24px 0',
-              padding: '20px',
-              borderRadius: '10px',
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <Sparkles size={18} color="#0F2C59" />
-                <h4 style={{ margin: 0, color: '#0F2C59', fontSize: '1rem', fontWeight: 600 }}>
-                  Recommended Complementary Items for Your Solution
-                </h4>
-              </div>
-              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 14px 0' }}>
-                Enterprise customers who deployed these items achieved higher adoption and system resilience.
-              </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
-                {upsellAddons.map(addon => (
-                  <div key={addon.id} style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    background: '#fff',
-                    border: '1px solid #cbd5e1',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between'
-                  }}>
-                    <div>
-                      <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>{addon.name}</strong>
-                      <div style={{ fontSize: '0.78rem', color: '#0284c7', marginTop: '3px' }}>{addon.reason}</div>
-                    </div>
-                    <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#0F2C59' }}>
-                        {formatCurrency(addon.basePrice)}
-                      </span>
-                      <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px' }}>
-                        Add-on
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+
 
           {/* Electronic Signature or Actions */}
           {!isConfirmed ? (

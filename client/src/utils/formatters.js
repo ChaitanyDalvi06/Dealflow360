@@ -1,11 +1,12 @@
 /**
  * Format currency in INR
  */
-export function formatCurrency(amount) {
-  return new Intl.NumberFormat('en-IN', {
+export function formatCurrency(amount, currency = 'INR') {
+  const localeMap = { INR: 'en-IN', USD: 'en-US', EUR: 'de-DE', GBP: 'en-GB' };
+  return new Intl.NumberFormat(localeMap[currency] || 'en-IN', {
     style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0,
+    currency: currency || 'INR',
+    maximumFractionDigits: currency === 'INR' ? 0 : 2,
   }).format(amount || 0);
 }
 

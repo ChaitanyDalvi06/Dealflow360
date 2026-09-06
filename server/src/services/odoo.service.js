@@ -12,10 +12,12 @@ const ODOO_CLIENT_PATH = path.resolve(__dirname, 'odoo_client.py');
  * Synchronizes an executed quotation contract to the live Odoo instance.
  * Uploads customer details, attachment PDF, and creates an Odoo Sign record.
  * @param {string} quotationId
+ * @param {string} quotationId
  * @param {string} [pdfPath]
+ * @param {object} [signerInfo]
  * @returns {Promise<any>}
  */
-export async function syncQuotationToOdoo(quotationId, pdfPath = null) {
+export async function syncQuotationToOdoo(quotationId, pdfPath = null, signerInfo = null) {
   try {
     const quotation = await prisma.quotation.findUnique({
       where: { id: quotationId },
@@ -42,6 +44,20 @@ export async function syncQuotationToOdoo(quotationId, pdfPath = null) {
       }
     }
 
+    // Check if there is signature metadata saved in storage/signatures
+    let resolvedSigner = signerInfo;
+    if (!resolvedSigner) {
+      try {
+        const sigMetaPath = path.resolve(__dirname, `../../storage/signatures/sig_${quotation.id}.json`);
+        const fs = await import('fs');
+        if (fs.existsSync(sigMetaPath)) {
+          resolvedSigner = JSON.parse(fs.readFileSync(sigMetaPath, 'utf8'));
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const payload = {
       config: config.odoo,
       quotation: {
@@ -49,6 +65,12 @@ export async function syncQuotationToOdoo(quotationId, pdfPath = null) {
         quoteNumber,
         orderTotal: Number(quotation.orderTotal || 0),
         status: quotation.status,
+        signer: resolvedSigner ? {
+          name: resolvedSigner.signerName,
+          designation: resolvedSigner.signerDesignation,
+          signedAt: resolvedSigner.signedAt,
+          sha256Hash: resolvedSigner.sha256Hash,
+        } : null,
         customer: {
           name: quotation.customer?.name || 'Customer',
           company: quotation.customer?.company || 'Corporate Client',

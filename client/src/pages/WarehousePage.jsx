@@ -103,6 +103,26 @@ export default function WarehousePage() {
     }
   };
 
+  // Consolidate Remaining Backorders when replenishment stock arrives
+  const [consolidating, setConsolidating] = useState(false);
+  const handleConsolidateBackorder = async () => {
+    if (!selectedQuoteId) return;
+    try {
+      setConsolidating(true);
+      const res = await api.post(`/warehouses/consolidate/${selectedQuoteId}`);
+      setFeedback({ type: 'success', message: res.data.message });
+      await fetchData();
+      await handleSimulateSplit();
+    } catch (err) {
+      setFeedback({
+        type: 'danger',
+        message: 'Consolidation failed: ' + (err.response?.data?.error || err.message)
+      });
+    } finally {
+      setConsolidating(false);
+    }
+  };
+
   // Summary KPIs for network strip
   const totalWarehouses = warehouses.length;
   const totalUnits = warehouses.reduce((sum, wh) => sum + (wh.stockLevels?.reduce((acc, s) => acc + s.quantity, 0) || 0), 0);
@@ -381,7 +401,7 @@ export default function WarehousePage() {
               </table>
             </div>
 
-            <div className="confirm-split-footer">
+            <div className="confirm-split-footer" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
               <button
                 className="btn btn-success btn-lg"
                 onClick={handleConfirmSplit}
@@ -390,6 +410,19 @@ export default function WarehousePage() {
               >
                 {savingSplit ? 'Allocating & Decrementing...' : 'Lock Allocation & Deduct Stock'}
                 {!savingSplit && <ArrowRight size={18} style={{ marginLeft: '8px' }} />}
+              </button>
+
+              {/* Automated Backorder Consolidation Trigger */}
+              <button
+                type="button"
+                className="btn btn-outline-warning"
+                onClick={handleConsolidateBackorder}
+                disabled={consolidating}
+                style={{ borderRadius: '12px', padding: '12px 20px', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}
+                title="Consolidate split backorders into a single shipment when fresh depot inventory arrives"
+              >
+                <RefreshCw size={16} className={consolidating ? 'spin' : ''} />
+                {consolidating ? 'Consolidating...' : 'Consolidate Remaining Backorders'}
               </button>
             </div>
           </div>

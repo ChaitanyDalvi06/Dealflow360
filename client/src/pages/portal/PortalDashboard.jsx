@@ -10,30 +10,30 @@ import {
 
 const STATUS_CONFIG = {
   NEW: { 
-    color: '#d97706', 
-    bg: 'rgba(245, 158, 11, 0.08)', 
-    border: 'rgba(245, 158, 11, 0.25)', 
-    dotColor: '#f59e0b',
+    color: '#b57714', 
+    bg: '#fdf6ea', 
+    border: '#fadca8', 
+    dotColor: '#b57714',
     label: 'Awaiting Rep' 
   },
   ASSIGNED: { 
-    color: '#0284c7', 
-    bg: 'rgba(2, 132, 199, 0.08)', 
-    border: 'rgba(2, 132, 199, 0.25)', 
-    dotColor: '#0ea5e9',
+    color: '#1a68b5', 
+    bg: '#edf5fd', 
+    border: '#bfe0fd', 
+    dotColor: '#1a68b5',
     label: 'Under Rep Review' 
   },
   QUOTED: { 
-    color: '#059669', 
-    bg: 'rgba(16, 185, 129, 0.08)', 
-    border: 'rgba(16, 185, 129, 0.25)', 
-    dotColor: '#10b981',
+    color: '#1f7a40', 
+    bg: '#edf8f1', 
+    border: '#b7e8c7', 
+    dotColor: '#1f7a40',
     label: 'Quotation Ready' 
   },
   CLOSED: { 
     color: '#64748b', 
-    bg: 'rgba(100, 116, 139, 0.08)', 
-    border: 'rgba(100, 116, 139, 0.2)', 
+    bg: '#f1f5f9', 
+    border: '#cbd5e1', 
     dotColor: '#94a3b8',
     label: 'Completed / Closed' 
   },

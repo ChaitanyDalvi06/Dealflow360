@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { portalApi } from '../../utils/api';
+import { formatCurrency } from '../../utils/formatters';
 import { 
   Plus, Minus, Send, Package, Search, X, Sparkles, CheckCircle, 
   MessageSquare, TrendingUp, PieChart, ShieldCheck, Clock, ArrowRight,
@@ -460,6 +461,54 @@ export default function PortalNewRequirement() {
             </div>
           </div>
 
+          {/* Model 1: Recommended Complementary Items for Your Solution */}
+          {submittedOrder.recommendations && submittedOrder.recommendations.length > 0 && (
+            <div style={{
+              margin: '20px 0',
+              padding: '18px 20px',
+              borderRadius: '12px',
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              textAlign: 'left'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <Sparkles size={18} color="#0F2C59" />
+                <h4 style={{ margin: 0, color: '#0F2C59', fontSize: '1rem', fontWeight: 600 }}>
+                  Recommended Complementary Items for Your Solution
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0 0 14px 0' }}>
+                Enterprise customers who deployed these items achieved higher adoption and system resilience.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
+                {submittedOrder.recommendations.map(addon => (
+                  <div key={addon.id} style={{
+                    padding: '14px',
+                    borderRadius: '8px',
+                    background: '#fff',
+                    border: '1px solid #cbd5e1',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div>
+                      <strong style={{ fontSize: '0.9rem', color: '#1e293b' }}>{addon.name}</strong>
+                      <div style={{ fontSize: '0.78rem', color: '#0284c7', marginTop: '4px' }}>{addon.reason}</div>
+                    </div>
+                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#0F2C59' }}>
+                        {formatCurrency(addon.basePrice)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                        Add-on
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="portal-submitted-actions">
             {submittedOrder.id && (
@@ -826,6 +875,77 @@ export default function PortalNewRequirement() {
                 <strong style={{ color: '#059669' }}>Custom Volume Calculation</strong>
               </div>
             </div>
+
+            {/* Recommended Complementary Items for Your Solution */}
+            {upsellRecs.length > 0 && (
+              <div style={{
+                marginTop: '16px',
+                marginBottom: '16px',
+                padding: '12px 14px',
+                borderRadius: '10px',
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                  <Sparkles size={15} color="#0F2C59" />
+                  <strong style={{ fontSize: '0.86rem', color: '#0F2C59' }}>
+                    Recommended Add-ons
+                  </strong>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0 0 10px 0' }}>
+                  Frequently paired with your selection:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {upsellRecs.slice(0, 3).map(addon => {
+                    const isAdded = selectedItems.some(i => i.productId === addon.id);
+                    return (
+                      <div key={addon.id} style={{
+                        padding: '8px 10px',
+                        borderRadius: '6px',
+                        background: '#ffffff',
+                        border: isAdded ? '1px solid #94a3b8' : '1px solid #cbd5e1',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px'
+                      }}>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {addon.name}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#0F2C59', fontFamily: 'monospace', fontWeight: 600 }}>
+                            {formatCurrency(addon.basePrice)}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isAdded}
+                          onClick={() => addProduct({
+                            id: addon.id,
+                            name: addon.name,
+                            category: addon.category || 'Add-on',
+                            basePrice: addon.basePrice,
+                          })}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            borderRadius: '5px',
+                            border: 'none',
+                            background: isAdded ? '#e2e8f0' : '#0F2C59',
+                            color: isAdded ? '#64748b' : '#ffffff',
+                            cursor: isAdded ? 'default' : 'pointer'
+                          }}
+                        >
+                          {isAdded ? 'Added ✓' : '+ Add'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Submit Action */}
             <button
